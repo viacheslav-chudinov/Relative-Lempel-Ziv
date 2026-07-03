@@ -10,8 +10,8 @@ using state_t = std::tuple<size_t, size_t, size_t>;
 struct pm_rlz{
     size_t start;
     size_t length;
-    const std::string& R;
-    const std::string& block;
+    std::string_view R;
+    std::string_view block;
     char ref_at(size_t pos){
         if (pos>=length){
             return block[pos - length];
@@ -28,11 +28,11 @@ struct pm_rlz{
         }
         size_t i = l;
         while (i < l + 1){
-            if (ref_at(i-p) > ref_at(i)){
-                i = i - ( i-s >=0 ? (i-s)%p : (s-i)%p);
+            if (ref_at(i-p) < ref_at(i)){
+                i = i - (i>=s ? (i-s)%p : p-((s-i)%p));
                 s = i;
                 p = 1;
-            } else if(ref_at(i-p) < ref_at(i)){
+            } else if(ref_at(i-p) > ref_at(i)){
                 p = i - s + 1;
             }
             i++;
@@ -59,7 +59,7 @@ struct pm_rlz{
                     break;                    
                 }
             }
-            if (p <= l/3 && s_match){
+            if (p > 0 && p <= l/3 && s_match){
                 i += p;
                 l -= p;
             } else{
@@ -67,7 +67,7 @@ struct pm_rlz{
                 l = 0; s = 0; p = 0;
             }
         }
-        return std::make_pair(l_max, ans_pos);
+        return std::make_pair(ans_pos, l_max);
     }
     
 }; 
