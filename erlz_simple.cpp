@@ -222,3 +222,13 @@ int main(int argc, char* argv[]) {
     std::vector<std::tuple<size_t, size_t, size_t>> factorization = rlz_compress(text, ref, tau);
     return 0;
 }
+/// ------  The result in the terminal  ------  
+//
+// --- FACTORS ---
+// Start in R =0 length = 2
+// Start in R =7 length = 2
+// Start in R =5 length = 2
+// Start in R =1 length = 4         CORRECT
+// Start in R =7 length = 3
+// Start in R =0 length = 5
+// Start in R =8 length = 2
