@@ -9,9 +9,9 @@
 // Add std::move logic, because currently std::strings 
 // are copied each time PM is invoked
 
-#define SIGMA 2
+#define SIGMA 4
 
-constexpr char ALPHABET[] = {'a', 'b'};
+constexpr char ALPHABET[] = {'a', 'b', 'c', '\0'};
 
 using table_t = std::vector<std::vector<size_t>>;
 
@@ -31,12 +31,10 @@ std::vector<size_t> calculate_table_of_deepest_nodes(sdsl::cst_sada<>& cst, tabl
         node_type candidate = std::get<2>(state);
         stack.pop();
         size_t id_v = cst.id(v);
-        if (marked[id_v][0] == 1){
-            size_t tmp = marked[id_v][2] + marked[id_v][3];
-            if (tmp > val){
-                candidate = v;
-                val = tmp;
-            }
+        size_t tmp = marked[id_v][2] + marked[id_v][3];
+        if (tmp > val){
+            candidate = v;
+            val = tmp;
         }
         if (cst.is_leaf(v)){
             size_t suff_numb = cst.sn(v);
@@ -55,21 +53,29 @@ std::vector<size_t> calculate_table_of_deepest_nodes(sdsl::cst_sada<>& cst, tabl
 }
 
 
-void write_into_marked(size_t& id_v, size_t& v_depth, size_t& i, size_t cur_match, table_t& marked){
-    if (cur_match >= marked[id_v][2]){
-        marked[id_v][0] = 1;
-        marked[id_v][1] = i; // The starting position of the suffix of R concerned rn
-        marked[id_v][2] = cur_match; // Offset on the edge = number of matched chars on it
-        marked[id_v][3] = v_depth;
+void write_into_marked_1(size_t& id_v, size_t& v_depth, size_t& i, table_t& marked){
+    marked[id_v][0] = 1;
+    marked[id_v][1] = i; // The starting position of the suffix of R concerned rn
+    marked[id_v][2] = 0; // Offset on the edge = number of matched chars on it
+    marked[id_v][3] = v_depth;
+}
+void write_into_marked_0(size_t& id_w, size_t& v_depth, size_t& i, size_t cur_match, table_t& marked){
+    if (marked[id_w][0] == 0 && cur_match >= marked[id_w][2]){
+        marked[id_w][0] = 0;
+        marked[id_w][1] = i; // The starting position of the suffix of R concerned rn
+        marked[id_w][2] = cur_match; // Offset on the edge = number of matched chars on it
+        marked[id_w][3] = v_depth; // depth of the anscestor
     }
 }
-
 
 void extend(node_type& v, size_t& i, table_t& marked, sdsl::cst_sada<>& suff_tree, size_t& m){
     while (i < m){
         size_t id_v = suff_tree.id(v);
         size_t v_depth = suff_tree.depth(v);
-        write_into_marked(id_v, v_depth, i, 0, marked);
+        if (suff_tree.is_leaf(v)){
+            v_depth -= 1;
+        }
+        write_into_marked_1(id_v, v_depth, i, marked);
         i++;
         v = suff_tree.sl(v);
         std::cout << "i = " << i << std::endl;
@@ -104,8 +110,8 @@ std::vector<std::tuple<size_t, size_t, size_t>> rlz_compress(const std::string& 
                 if (suff_tree.is_leaf(v)){
                     std::cout<< "Reached a leaf" << std::endl;
                     size_t id_v = suff_tree.id(v);
-                    size_t v_depth = suff_tree.depth(v);
-                    write_into_marked(id_v, v_depth, i, 0, marked);
+                    size_t v_depth = suff_tree.depth(v) - 1;
+                    write_into_marked_1(id_v, v_depth, i, marked);
                     v = suff_tree.sl(v);
                     i++;
                     j = i;
@@ -121,7 +127,7 @@ std::vector<std::tuple<size_t, size_t, size_t>> rlz_compress(const std::string& 
                 if (edge_length <= 0){
                     size_t id_v = suff_tree.id(v);
                     std::cout<< "No match on the edge i = "<< i << "     j = " << j <<std::endl;
-                    write_into_marked(id_v, v_depth, i, 0, marked);
+                    write_into_marked_1(id_v, v_depth, i, marked);
                     j = std::max(i + marked[suff_tree.id(v)][3], i + 1);
                     ++i;
                     v = suff_tree.sl(v);
@@ -135,8 +141,10 @@ std::vector<std::tuple<size_t, size_t, size_t>> rlz_compress(const std::string& 
                 }
                 if (cur_match < edge_length){
                     std::cout<< "Partial match on the edge i = "<< i << "     j = " << j <<std::endl;
+                    size_t id_w = suff_tree.id(w);
                     size_t id_v = suff_tree.id(v);
-                    write_into_marked(id_v, v_depth, i, cur_match, marked);
+                    write_into_marked_0(id_w, v_depth, i, cur_match, marked);
+                    write_into_marked_1(id_v, v_depth, i, marked);
                     j = std::max(i + marked[suff_tree.id(v)][3], i + 1);
                     ++i;
                     v = suff_tree.sl(v);
@@ -147,6 +155,7 @@ std::vector<std::tuple<size_t, size_t, size_t>> rlz_compress(const std::string& 
                     std::cout<< " i = " << i << "   j = "<< j << std::endl;
                     v = w;
                     if (j >= m){
+                        std::cout << "Calling extend, j >=m" << std::endl;
                         extend(v, i, marked, suff_tree, m);
                         std::cout<< " i = " << i << "   j = "<< j << std::endl;
                         break;
@@ -158,18 +167,26 @@ std::vector<std::tuple<size_t, size_t, size_t>> rlz_compress(const std::string& 
         std::vector<size_t> table_of_best = calculate_table_of_deepest_nodes(suff_tree, marked);
         std::cout <<"marked[table_of_best[0]][2] + marked[table_of_best[0]][3] =" << marked[table_of_best[0]][2] + marked[table_of_best[0]][3] << std::endl;
         int p = 0; 
-        while (p + global_offset < block.size()){
-            // std::cout<< "b + p + global_offset = " << b+p+global_offset << std::endl;
+        std::cout<< "global_offset = " << global_offset << "b = " << b << std::endl;
+        int k = 0;
+        while (p + global_offset < block.size() && k < 8){
+            //std::cout<< "p + global_offset = " << p + global_offset << std::endl;
             size_t idv = table_of_best[p+global_offset];
             size_t length_of_factor = marked[idv][2] + marked[idv][3];
+            std::cout <<"length_of_factor = " << length_of_factor << std::endl;
             size_t start_of_factor = marked[idv][1];
             factors.push_back(std::make_tuple(p+global_offset,start_of_factor, length_of_factor));
             p += length_of_factor;
+            std::cout << p << std::endl;
+            k++;
             // std::cout<< "First factor : (pos, len) = " << std::get<1>(factors.front()) << " " << std::get<2>(factors.front()) << std::endl;
             // std::cout<< "New factor : (pos, len) = " << start_of_factor << " " << length_of_factor << std::endl;
         }
         // Here we assume that have found at least one factor. (Meaning that forall c\in ALPHABET, c is contained in R)
         size_t x = b + std::get<0>(factors.back());
+        std::cout << "x =" <<  x << std::endl;
+        std::cout << "std::get<2>(factors.back()) =" <<  std::get<2>(factors.back()) << std::endl;
+        std::cout << "b+block_size =" <<  b+block_size << std::endl;
         while (b < n && x + std::get<2>(factors.back()) == (b+block_size)){
             std::cout<< "PM" << std::endl;
             b += block_size;
@@ -199,9 +216,9 @@ std::vector<std::tuple<size_t, size_t, size_t>> rlz_compress(const std::string& 
 // Resulting complexity O(m + tau*log(tau)) = O(m), if tau is chosen properly
 
 int main(int argc, char* argv[]) {
-    size_t tau = 4;
-    std::string ref = "abba";
-    std::string text = "abba";
+    size_t tau = 3;
+    std::string ref = "abbcaaacbc";  //  "abbcaaacbc"
+    std::string text = "abcbaabbcacbcabbcabc";  //  "abcbaabbcacbcabbcabc"
     std::vector<std::tuple<size_t, size_t, size_t>> factorization = rlz_compress(text, ref, tau);
     return 0;
 }
