@@ -1,28 +1,43 @@
 #pragma once
-#include <cstddef>
+#include <iostream>
+#include <sdsl/suffix_trees.hpp>
+#include <vector>
 #include <utility>
-#include <string> 
 
-using state_t = std::tuple<size_t, size_t, size_t>;
+
+using factors_t = std::vector<std::tuple<size_t, size_t, size_t>>;
+
+inline constexpr size_t SIGMA = 6;
+inline char ALPHABET[SIGMA] = {'a','b','c','d','e','\0'};
+
+
 
 // Algorithm taken from https://www.stringology.org/event/2013/p15.html
-
 struct pm_rlz{
     size_t start;
     size_t length;
-    std::string_view R;
-    std::string_view block;
+    std::string& R;
+    std::string& block;
     char ref_at(size_t pos){
-        if (pos>=length){
+        if (pos >= length && pos < length + block.size()){
             return block[pos - length];
-        } else{
+        } else if (pos < length && start+pos<R.size()){
             return R[start+pos];
+        } else{
+            std::cout << "start+pos = " << start+pos << std::endl;
+            std::cout << "length = " << length << std::endl;
+            throw std::runtime_error("ref_at bad indexing");
         }
     }
     char txt_at(size_t pos){
-        return R[pos];
+        if (pos<R.size()){
+            return R[pos];
+        } else{
+            std::cout << "pos = " << pos <<std::endl; 
+            throw std::runtime_error("text_at bad indexing");
+        }
     }
-    state_t UpdateMS(size_t l, size_t s, size_t p){
+    std::tuple<size_t, size_t, size_t> UpdateMS(size_t l, size_t s, size_t p){
         if (l == 0){
             return {1,0,1};
         }
@@ -72,3 +87,20 @@ struct pm_rlz{
     
 }; 
 
+using table_t = std::vector<std::vector<size_t>>;
+
+using node_type = sdsl::cst_sada<>::node_type;
+
+struct erlz_simple{
+    size_t tau;
+    std::string& ref;
+    std::string& text;
+
+    std::vector<size_t> calculate_table_of_deepest_nodes(sdsl::cst_sada<>& cst, table_t& marked);
+
+    void write_into_marked_1(size_t& id_v, size_t& v_depth, size_t& i, table_t& marked);
+    void write_into_marked_0(size_t& id_w, size_t& v_depth, size_t& i, size_t cur_match, table_t& marked);
+    void extend(node_type& v, size_t& i, table_t& marked, sdsl::cst_sada<>& suff_tree, size_t& m);
+
+    factors_t rlz_compress();
+};
