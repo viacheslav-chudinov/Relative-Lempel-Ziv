@@ -73,7 +73,7 @@ void erlz_simple::extend(node_type& v, size_t& i, table_t& marked, sdsl::cst_sad
         v = suff_tree.sl(v);
     }
     return ;
-};
+}
 
 
 factors_t erlz_simple::rlz_compress()

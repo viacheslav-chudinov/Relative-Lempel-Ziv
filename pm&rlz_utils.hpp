@@ -43,11 +43,11 @@ struct pm_rlz{
         }
         size_t i = l;
         while (i < l + 1){
-            if (ref_at(i-p) < ref_at(i)){
-                i = i - (i>=s ? (i-s)%p : p-((s-i)%p));
-                s = i;
-                p = 1;
-            } else if(ref_at(i-p) > ref_at(i)){
+            if (ref_at(i-p) < ref_at(i)){                //  ---
+                i = i - (i>=s ? (i-s)%p : p-((s-i)%p));  //     |
+                s = i;                                   //     |   -- This two inequality signs were originally mistakenly exchanged
+                p = 1;                                   //     |
+            } else if(ref_at(i-p) > ref_at(i)){          //  ---
                 p = i - s + 1;
             }
             i++;
@@ -74,7 +74,7 @@ struct pm_rlz{
                     break;                    
                 }
             }
-            if (p > 0 && p <= l/3 && s_match){
+            if (p > 0 && p <= l/3 && s_match){  // Originally without the condition that p > 0
                 i += p;
                 l -= p;
             } else{
@@ -103,4 +103,4 @@ struct erlz_simple{
     void extend(node_type& v, size_t& i, table_t& marked, sdsl::cst_sada<>& suff_tree, size_t& m);
 
     factors_t rlz_compress();
-};
+}; 
