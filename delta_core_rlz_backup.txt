@@ -1,0 +1,130 @@
+template <typename rads_t>
+void Delta_core_t<rads_t>::decompose_by_metaphrases(){
+    size_t n = T.size();
+    size_t b = 0;
+    size_t i, l;
+    main.update();
+    supplementary.update();
+    while(b < n){
+        std::cout << "b = " << b << std::endl;
+        bool can_extend = true;
+        lookup_new_factors.push_back(0);
+        l_pow = -1;
+        if ((!is_supported_by_main(b)) || (!is_supported_by_suppl(b))){
+            if ((!is_supported_by_main(b)) && main.buffer_start > b){
+                throw std::runtime_error("We overshot the meta phrase start in main");
+            } 
+            if((!is_supported_by_suppl(b)) && supplementary.buffer_start > b){
+                throw std::runtime_error("We overshot the meta phrase start in supplementary");
+            } 
+            while ((!is_supported_by_main(b)) && (!is_supported_by_suppl(b))){
+                main.update();
+                supplementary.update();
+            }
+            
+        }
+        while(can_extend){
+            size_t qr_step = delta<<(l_pow+1);
+            std::cout << "qr_step = " << qr_step << std::endl;
+            if (b + 3*qr_step > n){
+                std::cout << "Main's state" << std::endl;
+                main.print();
+                std::cout <<  std::endl;
+                std::cout << "Supplementary's state" << std::endl;
+                supplementary.print();
+                size_t u = deposit_to_delta_buffer(b);
+                while (u < std::min(n-b, delta)){
+                    main.update();
+                    supplementary.update();
+                    u = deposit_to_delta_buffer(b, u);
+                }
+                std::cout << u << std::endl;
+                if (u != std::min(n-b, delta)){
+                    throw std::runtime_error("Something went wrong when depositing near end of text");
+                }
+                batch_count += u;
+                batch[batch_count] = '#';
+                batch_count += 1;
+                can_extend = false;
+                break;
+            }
+            bool can_run_next_cm_query = is_supported_by_main(b + (3*qr_step)-1);
+            bool lost_access = false;
+            while ((!can_run_next_cm_query) && (!lost_access)){
+                main.update();
+                std::cout << "Main's state" << std::endl;
+                main.print();
+                std::cout <<  std::endl;
+                std::cout << "Supplementary's state" << std::endl;
+                supplementary.print();
+                can_run_next_cm_query = is_supported_by_main(b + (3*qr_step)-1);
+                std::cout << "is_supported_by_main(b) " << is_supported_by_main(b) << std::endl;
+                if (is_supported_by_main(b)){
+                    supplementary.update();
+                } else{
+                    lost_access = true;
+                    break;
+                }
+            }
+            if (!is_supported_by_main(b) && !is_supported_by_suppl(b)) {
+                throw std::runtime_error("Lost access to meta-phrase start ... Execution failed");
+            }
+            if (lost_access){
+                std::cout << "Lost access to the start of a new metaphrase -- it's okay" << std::endl;
+                size_t u = deposit_to_delta_buffer(b);
+                while (u < std::min(n-b, delta)){
+                    // std::cout << "Main's state in the loop before udate" << std::endl;
+                    //main.print();
+                    // std::cout <<  std::endl;
+                    //std::cout << "Supplementary's state in the loop before udate" << std::endl;
+                    // supplementary.print();
+                    main.update();
+                    supplementary.update();
+                    u = deposit_to_delta_buffer(b, u);
+                }
+                // supplementary.update();
+                std::cout << "Main's state after the loop" << std::endl;
+                main.print();
+                std::cout <<  std::endl;
+                std::cout << "Supplementary's state after the loop" << std::endl;
+                supplementary.print();
+                batch_count += u;  // u = std::min(n-b, delta)
+                batch[batch_count] = '#';
+                batch_count += 1;
+                can_extend = false;
+                break;
+            }
+            std::cout << "Batch is \n" << batch << std::endl;
+            std::tie(i,l) = core_matching_query(b);
+            if (l == 0){
+                size_t u = deposit_to_delta_buffer(b);
+                if (u != std::min(n-b, delta)){
+                    throw std::runtime_error("Something went wrong when depositing on l = 0");
+                }
+                batch_count += 1 + std::min(delta, n-b);
+                batch[batch_count - 1] = '#';
+                can_extend = false;
+                break;
+            }
+            lookup_new_factors.push_back(1);
+            l_pow++;
+            pending_factors.push_back(std::make_pair(i, l)); // PONDER A CHANGE TO RLZFACTOR_T 
+        }
+        b += delta<<(l_pow+1);
+        if (batch_count >= batch_capacity){
+            Breakup_result state = breakup_delta_buffer();
+            send_factors_out(std::move(state));
+            batch_count = 0;
+        }
+    }
+    if (batch_count > 0){
+        Breakup_result state = breakup_delta_buffer();
+        send_factors_out(std::move(state));
+        batch_count = 0;
+    } else if (pending_factors.size() > 0){
+        for (auto s : pending_factors){
+            factors.push_back(s);
+        }
+        pending_factors.clear();
+    }
+}

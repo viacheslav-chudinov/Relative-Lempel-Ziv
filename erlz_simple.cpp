@@ -104,15 +104,15 @@ factors_t erlz_simple::rlz_compress()
                     j = i;
                     break;
                 }
+                size_t id_v = suff_tree.id(v);
+                size_t v_depth  = suff_tree.depth(v);
+                write_into_marked_1(id_v, v_depth, i, marked);
                 // Trying to read a new char
                 char c = ref[j];
                 node_type w = suff_tree.child(v, c); 
                 size_t cur_match = 0;
-                size_t v_depth = suff_tree.depth(v);
                 int edge_length = suff_tree.depth(w) - v_depth;
                 if (edge_length <= 0){
-                    size_t id_v = suff_tree.id(v);
-                    write_into_marked_1(id_v, v_depth, i, marked);
                     j = std::max(i + marked[suff_tree.id(v)][3], i + 1);
                     ++i;
                     v = suff_tree.sl(v);
@@ -125,9 +125,7 @@ factors_t erlz_simple::rlz_compress()
                 }
                 if (cur_match < edge_length){
                     size_t id_w = suff_tree.id(w);
-                    size_t id_v = suff_tree.id(v);
                     write_into_marked_0(id_w, v_depth, i, cur_match, marked);
-                    write_into_marked_1(id_v, v_depth, i, marked);
                     j = std::max(i + marked[suff_tree.id(v)][3], i + 1);
                     ++i;
                     v = suff_tree.sl(v);

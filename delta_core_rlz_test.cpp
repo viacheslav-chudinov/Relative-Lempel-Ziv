@@ -1,0 +1,83 @@
+#include "delta_core_rlz.hpp"
+
+std::vector<factor_t> rlz_compress_primitive(std::string& text, std::string& ref)
+{
+    size_t m = ref.size();
+    size_t n = text.size();
+    std::vector<factor_t> factors;
+    size_t b = 0;
+    while (b < n) {
+        size_t best_i = 0;
+        size_t best_len = 0;
+        for (size_t i = 0; i < m; ++i) {
+            size_t len = 0;
+            while (i + len < m && b + len < n && text[b + len] == ref[i + len]) {
+                ++len;
+            }
+            if (len > best_len) {
+                best_len = len;
+                best_i = i;
+            }
+        }
+        factors.push_back(std::make_pair(best_i, best_len));
+        b += best_len;
+    }
+    return factors;
+}
+
+int main(){
+    std::string T = "bcababaabcbdbdbcababcbddbdbccabacbdbdbcabababcdbdbabaaababcbdbdbcababcbaababcbdbdbcababcbddbdbccaacadbacbdbccaacadbacbdbdbcabababcdbdbabaaababcbcbdbdbcababbacbdbdbcabababcdbdaababcbdbdbcababcbddbdbbabcabbbacbdbdbcabababcdbdbabaaababcbdbdbcababcbddbdbccaacadbacbabbbacbdbdbcabababcdbdbabaaababcbdbdbcababcbddbdbccaacadbacbbabcdbdbabababcdbdbaba";
+    std::string R = "abbbacbdbdbcabababcdbdbabaaababcbdbdbcababcbddbdbccaacadbacb";
+    size_t tau = 8;
+    size_t delta = 4;
+
+    Delta_core_t<rads_simple_1> compression1(R, T, tau, delta);
+    compression1.decompose_by_metaphrases();
+    std::vector<factor_t> factors_rlz = rlz_compress_primitive(T, R);
+    std::cout << "---- rads_simple_1 ----" << std::endl;
+    std::cout << "Number of factors is approx rlz = " << compression1.factors.size() << std::endl; 
+    std::cout << "Number of factors is real rlz = " << factors_rlz.size() << std::endl; 
+    std::string res_check1 = "";
+    for(auto s : compression1.factors){
+        // std::cout << "Factor (i,l): \n i = " << s.first << "   l = " << s.second << std::endl;
+        res_check1 += R.substr(s.first, s.second);
+    }
+    //std::cout << res_check1 << std::endl;
+    for(int i = 0; i < T.size(); ++i){
+        if (T[i] != res_check1[i]){
+            std::cout << "Wrong factorization, res_check != T" << std::endl;
+            std::cout << "---- rads_simple_1 end ----" << std::endl;
+            return -1;
+        }
+    }
+    std::cout << "res_check matches T completely!" << std::endl;
+    std::cout << "---- rads_simple_1 end ----" << std::endl;
+    std::cout << std::endl;
+    std::cout << std::endl;
+
+
+    
+
+    Delta_core_t<rads_simple_2> compression2(R, T, tau, delta);
+    compression2.decompose_by_metaphrases();
+    std::vector<factor_t> factors_rlz2 = rlz_compress_primitive(T, R);
+    std::cout << "---- rads_simple_2 ----" << std::endl;
+    std::cout << "Number of factors is approx rlz = " << compression2.factors.size() << std::endl; 
+    std::cout << "Number of factors is real rlz = " << factors_rlz2.size() << std::endl; 
+    std::string res_check2 = "";
+    for(auto s : compression2.factors){
+        // std::cout << "Factor (i,l): \n i = " << s.first << "   l = " << s.second << std::endl;
+        res_check2 += R.substr(s.first, s.second);
+    }
+    // std::cout << res_check2 << std::endl;
+    for(int i = 0; i < T.size(); ++i){
+        if (T[i] != res_check2[i]){
+            std::cout << "Wrong factorization, res_check != T" << std::endl;
+            std::cout << "---- rads_simple_2 end ----" << std::endl;
+            return -1;
+        }
+    }
+    std::cout << "res_check matches T completely!" << std::endl;
+    std::cout << "---- rads_simple_2 end ----" << std::endl;
+    return 0;
+}

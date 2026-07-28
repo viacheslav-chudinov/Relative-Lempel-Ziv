@@ -1,4 +1,4 @@
-#include "rads_ds.hpp"
+#include "rads.hpp"
 
 void rads_in_action(std::string& T, std::string& R,size_t tau){
     size_t n = T.size();

@@ -6,5 +6,5 @@ set(CMAKE_CXX_STANDARD 17)
 include_directories(${CMAKE_SOURCE_DIR}/../sdsl/include)
 link_directories(${CMAKE_SOURCE_DIR}/../sdsl/lib)
 
-add_executable(main "rlz_test.cpp" erlz_simple.cpp)
+add_executable(main "delta_core_rlz_test.cpp")
 target_link_libraries(main sdsl divsufsort divsufsort64)
