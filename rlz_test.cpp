@@ -32,6 +32,16 @@ factors_t rlz_compress_primitive(std::string& text, std::string& ref)
 
 
 int main(){
+    // std::cout << "--- Pathological ---" << std::endl;
+    // std::string rrr = "abbabbabaaababababaaaababaabbabbabaaababababaaaababa";
+    // std::string batch = "bbabaaababbbabaaababababaabbabbabaaababababaa";
+    // erlz_simple rlz_compr{45, rrr, batch};
+    // factors_t factors = rlz_compr.rlz_compress();
+    // for (auto s : factors){
+    //     std::cout << "Factor is " << std::get<1>(s) << " " << std::get<2>(s) << std::endl;
+    // }
+    // std::cout << "--- End ---" << std::endl;
+    
     std::vector<unsigned > nb_tests{2, 3, 3};
     std::vector<unsigned > ref_lengths{16, 25, 36};
     std::vector<unsigned> taus{4, 5, 6};

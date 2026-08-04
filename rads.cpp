@@ -2,7 +2,7 @@
 
 void rads_in_action(std::string& T, std::string& R,size_t tau){
     size_t n = T.size();
-    rads_primitive rads(R, T, tau);
+    rads_simple_1 rads(R, T, tau);
     while (rads.buffer_size > 0){
         std::cout << std::endl;
         std::cout << " -- Current state is -- " << std::endl;

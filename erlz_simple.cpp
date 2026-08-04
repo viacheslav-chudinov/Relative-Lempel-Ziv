@@ -13,36 +13,74 @@ using node_type = sdsl::cst_sada<>::node_type;
 
 
 std::vector<size_t> erlz_simple::calculate_table_of_deepest_nodes(sdsl::cst_sada<>& cst, table_t& marked)
-{
-    std::vector<size_t> table_of_best(cst.csa.size());
-    std::stack<std::tuple<node_type, size_t, node_type>> stack;
+{   
+    // Post-order traversal
     node_type root = cst.root();
+    std::stack<node_type> stack1;
+    std::vector<std::pair<node_type, uint_t>> stack2;
+    stack1.push(cst.root());
+    stack2.push_back(std::make_pair(cst.root(), NONE));
+    while(!stack1.empty()){
+        node_type v = stack1.top();
+        stack1.pop();
+        for (uint8_t y = 0; y < SIGMA; y++){
+            node_type w = cst.child(v, ALPHABET[y]);
+            if (w != root){
+                stack2.push_back(std::make_pair(w, NONE));
+                stack1.push(w);
+            }
+        }
+    }
+
+    long int g = stack2.size() - 1;
+    while(g >= 0){
+        node_type v = stack2[g].first;
+        uint_t id_v = cst.id(v);
+        uint_t suff_ind_of_R = NONE;
+        if (marked[id_v][0]==0 && marked[id_v][2] == 0){
+            for (uint8_t y = 0; y < SIGMA; y++){
+                node_type w = cst.child(v, ALPHABET[y]);
+                if (w != root){
+                    if(marked[cst.id(w)][1] < NONE) suff_ind_of_R = marked[cst.id(w)][1];
+                }
+            }
+            if (suff_ind_of_R != NONE){
+                marked[id_v][1] = suff_ind_of_R;
+                marked[id_v][3] = cst.depth(v);
+            }
+        }
+        g--;
+    }
+    stack2.clear();
+
+    // Pre-order traversal:
+
+    std::vector<uint_t> table_of_best(cst.csa.size());
+    std::stack<std::tuple<node_type, uint_t, node_type>> stack;
     stack.push({root, 0, root});
     while(!stack.empty()){
         std::tuple state = stack.top();
         node_type v = std::get<0>(state);
-        size_t val = std::get<1>(state);
+        uint_t val = std::get<1>(state);
         node_type candidate = std::get<2>(state);
         stack.pop();
-        size_t id_v = cst.id(v);
-        size_t tmp = marked[id_v][2] + marked[id_v][3];
+        uint_t id_v = cst.id(v);
+        uint_t tmp = marked[id_v][2] + marked[id_v][3];
         if (tmp > val){
             candidate = v;
             val = tmp;
         }
         if (cst.is_leaf(v)){
-            size_t suff_numb = cst.sn(v);
-            table_of_best[suff_numb] = cst.id(candidate);
+            table_of_best[cst.sn(v)] = cst.id(candidate);
         } else {
             for (uint8_t y = 0; y < SIGMA; y++){
                 node_type w = cst.child(v, ALPHABET[y]);
-                if (w != root){   
+                if (w != root){
                     stack.push({w, val, candidate});
                 }
             }
         }
     }
-
     return table_of_best;
 }
 

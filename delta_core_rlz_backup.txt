@@ -1,130 +1,265 @@
 template <typename rads_t>
-void Delta_core_t<rads_t>::decompose_by_metaphrases(){
-    size_t n = T.size();
-    size_t b = 0;
-    size_t i, l;
-    main.update();
-    supplementary.update();
-    while(b < n){
-        std::cout << "b = " << b << std::endl;
-        bool can_extend = true;
-        lookup_new_factors.push_back(0);
-        l_pow = -1;
-        if ((!is_supported_by_main(b)) || (!is_supported_by_suppl(b))){
-            if ((!is_supported_by_main(b)) && main.buffer_start > b){
-                throw std::runtime_error("We overshot the meta phrase start in main");
-            } 
-            if((!is_supported_by_suppl(b)) && supplementary.buffer_start > b){
-                throw std::runtime_error("We overshot the meta phrase start in supplementary");
-            } 
-            while ((!is_supported_by_main(b)) && (!is_supported_by_suppl(b))){
-                main.update();
-                supplementary.update();
-            }
-            
+std::vector<uint_t> Delta_core_t<rads_t>::calculate_table_of_deepest_nodes(sdsl::cst_sada<>& cst, table_t& marked)
+{
+    std::cout << "We are in calculate_table_of_best" <<std::endl;
+    std::vector<uint_t> table_of_best(cst.csa.size());
+    std::stack<std::tuple<node_type, uint_t, node_type>> stack;
+    node_type root = cst.root();
+    stack.push({root, 0, root});
+    while(!stack.empty()){
+        std::tuple state = stack.top();
+        node_type v = std::get<0>(state);
+        uint_t val = std::get<1>(state);
+        node_type candidate = std::get<2>(state);
+        stack.pop();
+        uint_t id_v = cst.id(v);
+        uint_t tmp = marked[id_v][2] + marked[id_v][3];
+        if (tmp > val){
+            candidate = v;
+            val = tmp;
         }
-        while(can_extend){
-            size_t qr_step = delta<<(l_pow+1);
-            std::cout << "qr_step = " << qr_step << std::endl;
-            if (b + 3*qr_step > n){
-                std::cout << "Main's state" << std::endl;
-                main.print();
-                std::cout <<  std::endl;
-                std::cout << "Supplementary's state" << std::endl;
-                supplementary.print();
-                size_t u = deposit_to_delta_buffer(b);
-                while (u < std::min(n-b, delta)){
-                    main.update();
-                    supplementary.update();
-                    u = deposit_to_delta_buffer(b, u);
+        if (cst.is_leaf(v)){
+            uint_t suff_numb = cst.sn(v);
+            table_of_best[suff_numb] = cst.id(candidate);
+        } else {
+            for (uint8_t y = 0; y < SIGMA; y++){
+                node_type w = cst.child(v, ALPHABET[y]);
+                if (w != root){   
+                    stack.push({w, val, candidate});
                 }
-                std::cout << u << std::endl;
-                if (u != std::min(n-b, delta)){
-                    throw std::runtime_error("Something went wrong when depositing near end of text");
-                }
-                batch_count += u;
-                batch[batch_count] = '#';
-                batch_count += 1;
-                can_extend = false;
+            }
+        }
+    }
+
+    return table_of_best;
+}
+
+template <typename rads_t>
+void Delta_core_t<rads_t>::write_into_marked_1(uint_t id_v, uint_t v_depth, uint_t i, table_t& marked)
+{   
+    marked[id_v][0] = 1;
+    marked[id_v][1] = i; // The starting position of the suffix of R concerned rn
+    marked[id_v][2] = 0; // Offset on the edge = number of matched chars on it
+    marked[id_v][3] = v_depth;
+}
+
+template <typename rads_t>
+void Delta_core_t<rads_t>::write_into_marked_0(uint_t id_w, uint_t v_depth, uint_t i, uint_t cur_match, table_t& marked)
+{
+    if (marked[id_w][0] == 0 && cur_match >= marked[id_w][2]){
+        marked[id_w][1] = i; // The starting position of the suffix of R concerned rn
+        marked[id_w][2] = cur_match; // Offset on the edge = number of matched chars on it
+        marked[id_w][3] = v_depth; // depth of the anscestor
+    }
+}
+
+
+template <typename rads_t>
+void Delta_core_t<rads_t>::extend(node_type& v, uint_t& i, table_t& marked, sdsl::cst_sada<>& suff_tree, uint_t& m)
+{
+    while (i < m){
+        uint_t id_v = suff_tree.id(v);
+        uint_t v_depth = suff_tree.depth(v);
+        if (suff_tree.is_leaf(v)){
+            v_depth -= 1;
+        }
+        write_into_marked_1(id_v, v_depth, i, marked);
+        i++;
+        v = suff_tree.sl(v);
+    }
+    return ;
+}
+
+template <typename rads_t>
+Breakup_result Delta_core_t<rads_t>::breakup_delta_buffer()
+{
+    std::cout << "We are in breakup_delta_buffer" << std::endl;
+    uint_t m = R.size();
+    uint_t b = 0;
+    sdsl::cst_sada<> suff_tree;
+    sdsl::construct_im(suff_tree, batch, 1);
+    table_t marked(suff_tree.nodes(), std::vector<uint_t> (4));
+    uint_t i = 0;
+    uint_t j = 0;
+    node_type v = suff_tree.root();
+    while (i < m){
+        while (j < m){
+            uint_t L = suff_tree.is_leaf(v) ? suff_tree.depth(v) - 1 : suff_tree.depth(v);
+            if (j != i + L) {
+                std::cout << "INVARIANT BROKEN: i=" << i << " j=" << j
+                        << " id(v)=" << suff_tree.id(v)
+                        << " is_leaf=" << suff_tree.is_leaf(v)
+                        << " depth=" << suff_tree.depth(v)
+                        << " expected j=" << (i + L) << std::endl;
+            }
+            if (suff_tree.is_leaf(v)){
+                std::cout << "WE REACHED A LEAF" << std::endl;
+                uint_t id_v = suff_tree.id(v);
+                uint_t v_depth = suff_tree.depth(v) - 1;
+                write_into_marked_1(id_v, v_depth, i, marked);
+                j = i + v_depth;
+                i++; 
+                v = suff_tree.sl(v);
                 break;
             }
-            bool can_run_next_cm_query = is_supported_by_main(b + (3*qr_step)-1);
-            bool lost_access = false;
-            while ((!can_run_next_cm_query) && (!lost_access)){
-                main.update();
-                std::cout << "Main's state" << std::endl;
-                main.print();
-                std::cout <<  std::endl;
-                std::cout << "Supplementary's state" << std::endl;
-                supplementary.print();
-                can_run_next_cm_query = is_supported_by_main(b + (3*qr_step)-1);
-                std::cout << "is_supported_by_main(b) " << is_supported_by_main(b) << std::endl;
-                if (is_supported_by_main(b)){
-                    supplementary.update();
-                } else{
-                    lost_access = true;
+
+            uint_t id_v = suff_tree.id(v);
+            uint_t v_depth  = suff_tree.depth(v);
+            write_into_marked_1(id_v, v_depth, i, marked);
+
+            // Trying to read a new char
+            char c = ref_at(j);
+            node_type w = suff_tree.child(v, c); 
+            uint_t cur_match = 0;
+            int edge_length = suff_tree.depth(w) - v_depth;
+            if (edge_length <= 0){
+                j = std::max(i + marked[suff_tree.id(v)][3], i + 1);
+                ++i;
+                v = suff_tree.sl(v);
+                if (j >= m) 
+                    extend(v, i, marked, suff_tree, m);
+                break;
+            }
+            while (cur_match < edge_length && j + cur_match < m && suff_tree.edge(w,v_depth + cur_match + 1) == ref_at(j + cur_match)){  //1-based indexing on edges
+                ++cur_match;
+            }
+            if (cur_match < edge_length){
+                uint_t id_w = suff_tree.id(w);
+                write_into_marked_0(id_w, v_depth, i, cur_match, marked);
+                j = std::max(i + marked[suff_tree.id(v)][3], i + 1);
+                ++i;
+                v = suff_tree.sl(v);
+                break;
+            } else{
+                j += edge_length;
+                uint_t id_w = suff_tree.id(w);
+                uint_t w_depth = v_depth + edge_length;    // == suff_tree.depth(w)
+                write_into_marked_1(id_w, w_depth, i, marked);
+                v = w;
+                if (j >= m){
+                    extend(v, i, marked, suff_tree, m);
                     break;
                 }
             }
-            if (!is_supported_by_main(b) && !is_supported_by_suppl(b)) {
-                throw std::runtime_error("Lost access to meta-phrase start ... Execution failed");
-            }
-            if (lost_access){
-                std::cout << "Lost access to the start of a new metaphrase -- it's okay" << std::endl;
-                size_t u = deposit_to_delta_buffer(b);
-                while (u < std::min(n-b, delta)){
-                    // std::cout << "Main's state in the loop before udate" << std::endl;
-                    //main.print();
-                    // std::cout <<  std::endl;
-                    //std::cout << "Supplementary's state in the loop before udate" << std::endl;
-                    // supplementary.print();
-                    main.update();
-                    supplementary.update();
-                    u = deposit_to_delta_buffer(b, u);
-                }
-                // supplementary.update();
-                std::cout << "Main's state after the loop" << std::endl;
-                main.print();
-                std::cout <<  std::endl;
-                std::cout << "Supplementary's state after the loop" << std::endl;
-                supplementary.print();
-                batch_count += u;  // u = std::min(n-b, delta)
-                batch[batch_count] = '#';
-                batch_count += 1;
-                can_extend = false;
-                break;
-            }
-            std::cout << "Batch is \n" << batch << std::endl;
-            std::tie(i,l) = core_matching_query(b);
-            if (l == 0){
-                size_t u = deposit_to_delta_buffer(b);
-                if (u != std::min(n-b, delta)){
-                    throw std::runtime_error("Something went wrong when depositing on l = 0");
-                }
-                batch_count += 1 + std::min(delta, n-b);
-                batch[batch_count - 1] = '#';
-                can_extend = false;
-                break;
-            }
-            lookup_new_factors.push_back(1);
-            l_pow++;
-            pending_factors.push_back(std::make_pair(i, l)); // PONDER A CHANGE TO RLZFACTOR_T 
-        }
-        b += delta<<(l_pow+1);
-        if (batch_count >= batch_capacity){
-            Breakup_result state = breakup_delta_buffer();
-            send_factors_out(std::move(state));
-            batch_count = 0;
         }
     }
-    if (batch_count > 0){
-        Breakup_result state = breakup_delta_buffer();
-        send_factors_out(std::move(state));
-        batch_count = 0;
-    } else if (pending_factors.size() > 0){
-        for (auto s : pending_factors){
-            factors.push_back(s);
+    uint_t root_id = suff_tree.id(suff_tree.root());
+    std::cout << "root_id = " << root_id << std::endl;
+    for (uint8_t y = 0; y < SIGMA; y++){
+        node_type child = suff_tree.child(suff_tree.root(), ALPHABET[y]);
+        if (child != suff_tree.root()){
+            uint_t cid = suff_tree.id(child);
+            std::cout << "child '" << ALPHABET[y] << "' id=" << cid
+                    << " marked={" << marked[cid][0] << "," << marked[cid][1]
+                    << "," << marked[cid][2] << "," << marked[cid][3] << "}"
+                    << std::endl;
         }
-        pending_factors.clear();
     }
+    std::vector<uint_t> table_of_best = calculate_table_of_deepest_nodes(suff_tree, marked);
+    return Breakup_result {std::move(marked), std::move(table_of_best)};
+}
+
+
+template <typename rads_t>
+Breakup_result Delta_core_t<rads_t>::breakup_delta_buffer()
+{
+    std::cout << "We are in breakup_delta_buffer" << std::endl;
+    uint_t m = R.size();
+    uint_t b = 0;
+    sdsl::cst_sada<> suff_tree;
+    sdsl::construct_im(suff_tree, batch, 1);
+
+    // === Sentinel check ===
+    std::cout << "=== Sentinel check ===" << std::endl;
+    node_type rt = suff_tree.root();
+    for (uint8_t y = 0; y < SIGMA; y++){
+        node_type w = suff_tree.child(rt, ALPHABET[y]);
+        std::cout << "child(root, '" << ALPHABET[y] << "') -> id=" << suff_tree.id(w)
+                   << " depth=" << suff_tree.depth(w)
+                   << " is_leaf=" << suff_tree.is_leaf(w)
+                   << " (root itself has id=" << suff_tree.id(rt) << ")" << std::endl;
+    }
+
+    table_t marked(suff_tree.nodes(), std::vector<uint_t> (4));
+    uint_t i = 0;
+    uint_t j = 0;
+    node_type v = suff_tree.root();
+    while (i < m){
+        std::cout << "NEW i=" << i << " R[i]='" << ref_at(i) << "' j=" << j << " v_id=" << suff_tree.id(v) << std::endl;
+        while (j < m){
+            std::cout << "MARK-LOOP: i=" << i << " j=" << j
+                       << " v_id=" << suff_tree.id(v)
+                       << " v_depth=" << suff_tree.depth(v)
+                       << " is_leaf=" << suff_tree.is_leaf(v) << std::endl;
+
+            if (suff_tree.is_leaf(v)){
+                uint_t id_v = suff_tree.id(v);
+                uint_t v_depth = suff_tree.depth(v) - 1;
+                write_into_marked_1(id_v, v_depth, i, marked);
+                j = i + v_depth;
+                i++;
+                v = suff_tree.sl(v);
+                break;
+            }
+
+            uint_t id_v = suff_tree.id(v);
+            uint_t v_depth  = suff_tree.depth(v);
+            write_into_marked_1(id_v, v_depth, i, marked);
+
+            // Trying to read a new char
+            char c = ref_at(j);
+            node_type w = suff_tree.child(v, c);
+            std::cout << "  reading c='" << c << "' at j=" << j
+                       << " -> w_id=" << suff_tree.id(w)
+                       << " w_depth=" << suff_tree.depth(w) << std::endl;
+
+            uint_t cur_match = 0;
+            int edge_length = suff_tree.depth(w) - v_depth;
+            if (edge_length <= 0){
+                j = std::max(i + marked[suff_tree.id(v)][3], i + 1);
+                ++i;
+                v = suff_tree.sl(v);
+                if (j >= m)
+                    extend(v, i, marked, suff_tree, m);
+                break;
+            }
+            while (cur_match < edge_length && j + cur_match < m && suff_tree.edge(w,v_depth + cur_match + 1) == ref_at(j + cur_match)){  //1-based indexing on edges
+                ++cur_match;
+            }
+            if (cur_match < edge_length){
+                uint_t id_w = suff_tree.id(w);
+                write_into_marked_0(id_w, v_depth, i, cur_match, marked);
+                j = std::max(i + marked[suff_tree.id(v)][3], i + 1);
+                ++i;
+                v = suff_tree.sl(v);
+                break;
+            } else{
+                j += edge_length;
+                uint_t id_w = suff_tree.id(w);
+                uint_t w_depth = v_depth + edge_length;    // == suff_tree.depth(w)
+                write_into_marked_1(id_w, w_depth, i, marked);
+                v = w;
+                if (j >= m){
+                    extend(v, i, marked, suff_tree, m);
+                    break;
+                }
+            }
+        }
+    }
+
+    uint_t root_id = suff_tree.id(suff_tree.root());
+    std::cout << "root_id = " << root_id << std::endl;
+    for (uint8_t y = 0; y < SIGMA; y++){
+        node_type child = suff_tree.child(suff_tree.root(), ALPHABET[y]);
+        if (child != suff_tree.root()){
+            uint_t cid = suff_tree.id(child);
+            std::cout << "child '" << ALPHABET[y] << "' id=" << cid
+                       << " marked={" << marked[cid][0] << "," << marked[cid][1]
+                       << "," << marked[cid][2] << "," << marked[cid][3] << "}"
+                       << std::endl;
+        }
+    }
+
+    std::vector<uint_t> table_of_best = calculate_table_of_deepest_nodes(suff_tree, marked);
+    return Breakup_result {std::move(marked), std::move(table_of_best)};
 }
