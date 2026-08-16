@@ -6,11 +6,7 @@
 #include <vector>
 #include <stack>
 #include <memory>
-
-typedef uint32_t u32;
-typedef uint64_t u64;
-
-using uint_t = u64;
+#include "common_utils.hpp"
 
 struct rads_simple_1{
     uint_t tau;

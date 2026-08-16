@@ -32,16 +32,6 @@ factors_t rlz_compress_primitive(std::string& text, std::string& ref)
 
 
 int main(){
-    // std::cout << "--- Pathological ---" << std::endl;
-    // std::string rrr = "abbabbabaaababababaaaababaabbabbabaaababababaaaababa";
-    // std::string batch = "bbabaaababbbabaaababababaabbabbabaaababababaa";
-    // erlz_simple rlz_compr{45, rrr, batch};
-    // factors_t factors = rlz_compr.rlz_compress();
-    // for (auto s : factors){
-    //     std::cout << "Factor is " << std::get<1>(s) << " " << std::get<2>(s) << std::endl;
-    // }
-    // std::cout << "--- End ---" << std::endl;
-    
     std::vector<unsigned > nb_tests{2, 3, 3};
     std::vector<unsigned > ref_lengths{16, 25, 36};
     std::vector<unsigned> taus{4, 5, 6};
@@ -52,22 +42,25 @@ int main(){
         size_t tau = taus[Q];
         for (std::size_t n = 0; n < nb_of_tests; ++n)
         {   
-            std::cout << "Ref length is  " << ref_length << "\n And test number " << n << "started" << std::endl;
+            std::cout << "Ref length is  " << ref_length << "\n And test number " << n + 1 << " started" << std::endl;
             std::mt19937 generator(std::random_device{}());
-            std::uniform_int_distribution<std::size_t> distribution(0, SIGMA - 2);
+            std::uniform_int_distribution<std::size_t> distribution(0, SIGMA - 1);
             std::string ref = "";
             std::string text = "";
             for (unsigned int i = 0; i < ref_length; ++i){
                 std::size_t number = distribution(generator);
                 ref += ALPHABET[number];
             }
+            std::cout << "ref is \n" << ref << std::endl;
             for (unsigned int i = 0; i < text_length; ++i){
                 std::size_t number = distribution(generator);
                 text += ALPHABET[number];
             }
             erlz_simple RLZ_simple{tau, ref, text};
             factors_t factors = RLZ_simple.rlz_compress();
+            std::cout << "compressed" << std::endl;
             factors_t true_factors = rlz_compress_primitive(text, ref);
+            std::cout << "true factors calculated" << std::endl;
             size_t l1, l2;
             l1 = factors.size();
             l2 = true_factors.size();
@@ -100,7 +93,7 @@ int main(){
         }
     }
     std::cout << "OK  -- RLZ_SIMPLE IS CORRECT" << std::endl;
-
+    std::cout << "Second part of the test" << std::endl;
     std::vector<std::string> refs{"abbedced", "bbbedabaddeedbdccdace", "aabbabaabbbababbaaaaaaabbabaabbabbbb"};
     std::vector<std::string> texts = {"bbebedcedabbeedcbcebedcedab", "edabaddeedbdccdedbdbbeeeacdabadccdacbbbaddeedbdccdace", "baabbbabababbaaaaaaabbaabbabaabbabbabbabaabbbababbababbaaaaaaabbbabaabbabbbbbaaaaaaabbabaabaabbbababbaaaaaaabbabaa"};
     std::string ref = "abbedced";

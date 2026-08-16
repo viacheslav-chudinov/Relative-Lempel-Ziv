@@ -3,7 +3,7 @@ CXXFLAGS = -Wall -std=c++17 -O2
 
 TARGET = main
 
-SRCS = $(wildcard *.cpp)
+SRCS = $(wildcard *.cpp) ../find_a_prime/primes.cpp
 OBJS = $(SRCS:.cpp=.o)
 
 all: $(TARGET)

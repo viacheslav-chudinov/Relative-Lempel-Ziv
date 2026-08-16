@@ -1,10 +1,11 @@
 #include <iostream>
-#include <cstdint>
-#include <random>
 #include <fstream>
 #include <set>
 #include <unordered_set>
 #include "rainbow_table.hpp"
+#include "../find_a_prime/primes.hpp"
+#include <boost/multiprecision/cpp_int.hpp>
+#include "mega_rainbow.hpp"
 
 uint32_t func_1(uint32_t x){ // x <= 50
     if (x%2 == 0){
@@ -27,29 +28,7 @@ uint32_t func_1(uint32_t x){ // x <= 50
         return 47;
     }
 }
-uint32_t compute_pow_modulo_n(uint32_t m, uint32_t pow, uint32_t n){
-// Compute m^pow modulo n
-    uint64_t tmp = 1, base = m % n;
-    while (pow){
-        if (pow & 1) tmp = (tmp * base) % n;
-        base = (base * base) % n;
-        pow >>= 1;
-    }
-    return (uint32_t)tmp;
-}
 
-uint32_t compute_polynom_modulo_n_signed(uint32_t x, std::vector<std::pair<uint32_t, long int>>& coeffs, uint32_t n){
-    uint32_t k = 0;
-    uint64_t ans = 0;
-    while(k < coeffs.size()){
-        auto [pow, coef] = coeffs[k];
-        coef = (n+(coef%n))%n;
-        uint32_t uns_coef = static_cast<uint32_t>(coef);
-        ans = (ans + (uns_coef*compute_pow_modulo_n(x, pow, n))%n)%n;
-        k++;
-    }
-    return ans;
-}
 uint32_t compute_polynom_modulo_n_unsigned(uint32_t x, std::vector<std::pair<uint32_t, uint32_t>>& coeffs, uint32_t n){
     uint32_t k = 0;
     uint64_t ans = 0;
@@ -61,11 +40,6 @@ uint32_t compute_polynom_modulo_n_unsigned(uint32_t x, std::vector<std::pair<uin
     return ans;
 }
 
-uint32_t func_2(uint32_t x){ // x <= 5903
-    std::vector<std::pair<uint32_t, long int>> coeffs = {{8, 10}, {7, -30}, {6, 3}, {5, 1}, {2,-80}, {1, 4}, {0, 15}};
-    uint32_t n = 5903; // Also a prime number
-    return compute_polynom_modulo_n_signed(x, coeffs, n);
-}
 
 uint32_t func_3(uint32_t x){ // x <= 10_000
     static const uint32_t p = 42043; // A prime number
@@ -86,11 +60,13 @@ uint32_t func_3(uint32_t x){ // x <= 10_000
     return compute_polynom_modulo_n_unsigned(x, coeffs, p);
 }
 
-uint32_t evalute_poly(uint32_t x, const std::vector<uint32_t>& coeffs, uint32_t p){
-    uint64_t res = coeffs.back()%p;
-    for (long int i = coeffs.size() - 2; i >= 0; --i)
-        res = (((res * x)%p) + coeffs[i])%p;
-    return static_cast<uint32_t>(res);
+uint128_t evalute_poly(uint128_t x, const std::vector<uint32_t>& coeffs, uint128_t p){
+    using boost::multiprecision::uint256_t;
+    uint256_t res = static_cast<uint256_t>(0);
+    uint256_t P = static_cast<uint256_t>(p);
+    for (long int i = coeffs.size() - 1; i >= 0; --i)
+        res = (((res * x)%P) + coeffs[i])%P;
+    return static_cast<uint128_t>(res);
 }
 
 uint32_t func_4(uint32_t x){ // x <= 42043
@@ -140,38 +116,39 @@ uint32_t func_5(uint32_t x){ // x <= rna.size() - window
     return vals[x];
 }
 
-void func_6_prep(){
+uint32_t func_6_prep(){
     std::ifstream file("longtxt.txt");
     std::string text;
     file >> text;
-    std::cout << "Text length is " << text.size() << std::endl;
+    return text.size();
 }
 
-std::vector<uint32_t> func_6_KR(){ 
-    uint32_t p = 595571; // A prime number
-    uint32_t base = random_in_range_prime(p);
+std::vector<uint128_t> func_6_KR(){
+    using boost::multiprecision::uint256_t;
+    uint128_t p = SUPER_PRIME;
+    uint128_t base = random_in_range_prime(SUPER_PRIME);
     std::ifstream file("longtxt.txt");
     std::string text;
     file >> text;
-    uint32_t window = 8193;
-    std::vector<uint32_t> vals;
-    std::vector<uint32_t> coeffs;
+    uint32_t window = 40001;
+    std::vector<uint128_t> vals;
+    std::vector<uint32_t> coeffs(window, 0);
     for (int x = window - 1; x >= 0; --x){
         coeffs.push_back((uint32_t)text[x]);
     }
-    uint32_t hash = evalute_poly(base, coeffs, p);
-    uint32_t base_pow_window = compute_pow_modulo_n(base, window - 1, p);
-    vals.push_back(hash);
+    uint256_t hash = uint256_t(evalute_poly(base, coeffs, p));
+    uint256_t base_pow_window = uint256_t(compute_pow_modulo_n_long(base, window - 1, p));
+    vals.push_back(static_cast<uint128_t>(hash));
     for (uint32_t x = window; x < text.size(); ++x){
-        hash = (p + (hash - ((uint32_t)(unsigned char)text[x- window])*base_pow_window)%p)%p;
-        hash = ((hash*base)%p + ((uint32_t)(unsigned char)text[x]))%p;
-        vals.push_back(hash);
+        hash = ((p+hash) - (((unsigned char)text[x- window])*base_pow_window)%p)%p;
+        hash = ((hash*base)%p + ((uint128_t)(unsigned char)text[x]))%p;
+        vals.push_back(static_cast<uint128_t>(hash));
     }
     return vals;
 }
 
-uint32_t func_6(uint32_t x){ // x <= rna.size() - window
-    static const std::vector<uint32_t> vals = func_6_KR();
+uint128_t func_6(uint32_t x){
+    static const std::vector<uint128_t> vals = func_6_KR();
     return vals[x];
 }
 
@@ -484,19 +461,32 @@ int main(){
 
 
     // text length is 333614
-    // window is 8193
+    // window is 40001
 
     std::cout << " ---- Function 6 ---- " << std::endl;
-    uint32_t p = 611939;
-    uint32_t N = 325421;
-    Rainbow_Table_3 rb1(N, func_6, p, 9462, 138);
-    Rainbow_Table_3 rb2(N, func_6, p, 9462, 138);
-    Rainbow_Table_3 rb3(N, func_6, p, 9462, 138);
-    Rainbow_Table_3 rb4(N, func_6, p, 9462, 138);
-    Rainbow_Table_3 rb5(N, func_6, p, 9462, 138);
-    Rainbow_Table_3 rb6(N, func_6, p, 9462, 138);
-    Rainbow_Table_3 rb7(N, func_6, p, 9462, 138);
-    std::unordered_set<uint32_t> image;
+    uint32_t N = func_6_prep() - 40001;
+    uint64_t p = find_good_prime_for_rb_tables(N);  // 325697
+    uint32_t log_N = std::log(N);
+    uint32_t cbrt_N = std::cbrt(N);
+    std::cout << "N = " << N << std::endl;
+    std::cout << "p = " << p << std::endl;
+    std::cout << "ln(N) = " << log_N << std::endl;
+    uint32_t nb_chains = 2 * cbrt_N * cbrt_N;
+    uint32_t chain_len = 2 * cbrt_N;
+    std::cout << "nb_chains = " << nb_chains << std::endl;
+    std::cout << "chain_len = " << chain_len << std::endl;
+    // std::cout << "Mega RB Table completeness : " << megarb.check_completeness() << std::endl;
+    Rainbow_Table_3 rb1(N, func_6, p, nb_chains, chain_len);
+    Rainbow_Table_3 rb2(N, func_6, p, nb_chains, chain_len);
+    Rainbow_Table_3 rb3(N, func_6, p, nb_chains, chain_len);
+    Rainbow_Table_3 rb4(N, func_6, p, nb_chains, chain_len);
+    Rainbow_Table_3 rb5(N, func_6, p, nb_chains, chain_len);
+    Rainbow_Table_3 rb6(N, func_6, p, nb_chains, chain_len);
+    Rainbow_Table_3 rb7(N, func_6, p, nb_chains, chain_len);
+    Rainbow_Table_3 rb8(N, func_6, p, nb_chains, chain_len);
+    Rainbow_Table_3 rb9(N, func_6, p, nb_chains, chain_len);
+    Rainbow_Table_3 rb10(N, func_6, p, nb_chains, chain_len);
+    std::unordered_set<uint128_t> image;
     uint32_t k;
     for (k = 0; k < N; ++k){
         image.insert(func_6(k));
@@ -509,23 +499,29 @@ int main(){
     int rb5_misses = 0;
     int rb6_misses = 0;
     int rb7_misses = 0;
+    int rb8_misses = 0;
+    int rb9_misses = 0;
+    int rb10_misses = 0;
     int tot_misses = 0; 
     uint64_t x;
     int u = 0;
-    for (uint32_t y : image){
+    for (uint128_t y : image){
         u++;
-        if (u%30000 == 0){
+        // std::cout << "u = " << u << std::endl;
+        if (u%10000 == 0){
             std::cout << "u = " << u << std::endl;
-            std::cout << "table 1 got " << rb1_misses << " misses" << std::endl;
-            std::cout << "table 2 got " << rb2_misses << " misses" << std::endl;
-            std::cout << "table 3 got " << rb3_misses << " misses" << std::endl;
-            std::cout << "table 4 got " << rb4_misses << " misses" << std::endl;
-            std::cout << "table 5 got " << rb5_misses << " misses" << std::endl;
-            std::cout << "table 6 got " << rb6_misses << " misses" << std::endl;
-            std::cout << "table 7 got " << rb7_misses << " misses" << std::endl;
+            // std::cout << "table 1 got " << rb1_misses << " misses" << std::endl;
+            // std::cout << "table 2 got " << rb2_misses << " misses" << std::endl;
+            // std::cout << "table 3 got " << rb3_misses << " misses" << std::endl;
+            // std::cout << "table 4 got " << rb4_misses << " misses" << std::endl;
+            // std::cout << "table 5 got " << rb5_misses << " misses" << std::endl;
+            // std::cout << "table 6 got " << rb6_misses << " misses" << std::endl;
+            // std::cout << "table 7 got " << rb7_misses << " misses" << std::endl;
+            // std::cout << "table 8 got " << rb8_misses << " misses" << std::endl;
+            // std::cout << "table 9 got " << rb9_misses << " misses" << std::endl;
+            // std::cout << "table 10 got " << rb10_misses << " misses" << std::endl;
             std::cout << "Total number of misses " << tot_misses << " misses" << std::endl;
         } 
-
         bool preimage1 = true;
         bool preimage2 = true;
         bool preimage3 = true;
@@ -533,6 +529,9 @@ int main(){
         bool preimage5 = true;
         bool preimage6 = true;
         bool preimage7 = true;
+        bool preimage8 = true;
+        bool preimage9 = true;
+        bool preimage10 = true;
         x = rb1.invert(y);
         if (x == NONE){
             rb1_misses++;
@@ -568,10 +567,26 @@ int main(){
             rb7_misses++;
             preimage7 = false;
         }
-        if (!preimage1 && !preimage2 && !preimage3 && !preimage4 && !preimage5&& !preimage6 && !preimage7){
+        x = rb8.invert(y);
+        if (x == NONE){
+            rb8_misses++;
+            preimage8 = false;
+        }
+        x = rb9.invert(y);
+        if (x == NONE){
+            rb9_misses++;
+            preimage9 = false;
+        }
+        x = rb10.invert(y);
+        if (x == NONE){
+            rb10_misses++;
+            preimage10 = false;
+        }
+        if (!preimage1 && !preimage2 && !preimage3 && !preimage4 && !preimage5 && !preimage6&& !preimage7&& !preimage8&& !preimage9&& !preimage10){
             tot_misses++;
         }
     }
+    std::cout << "u = " << u << std::endl;
     std::cout << "table 1 got " << rb1_misses << " misses" << std::endl;
     std::cout << "table 2 got " << rb2_misses << " misses" << std::endl;
     std::cout << "table 3 got " << rb3_misses << " misses" << std::endl;
@@ -579,6 +594,9 @@ int main(){
     std::cout << "table 5 got " << rb5_misses << " misses" << std::endl;
     std::cout << "table 6 got " << rb6_misses << " misses" << std::endl;
     std::cout << "table 7 got " << rb7_misses << " misses" << std::endl;
+    std::cout << "table 8 got " << rb8_misses << " misses" << std::endl;
+    std::cout << "table 9 got " << rb9_misses << " misses" << std::endl;
+    std::cout << "table 10 got " << rb10_misses << " misses" << std::endl;
     std::cout << "Total number of misses " << tot_misses << " misses" << std::endl;
     std::cout << std::endl;
     std::cout << std::endl;

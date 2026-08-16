@@ -1,17 +1,5 @@
 #include "rainbow_table.hpp"
 
-uint64_t random_in_range_prime(uint64_t prime){
-    static std::random_device rd;
-    static std::mt19937_64 gen(rd());
-    std::uniform_int_distribution<uint64_t> dist(1, prime - 1);
-    return dist(gen);
-}
-uint32_t random_in_range(uint32_t N){
-    static std::random_device rd;
-    static std::mt19937_64 gen(rd());
-    std::uniform_int_distribution<uint32_t> dist(0, N - 1);
-    return dist(gen);
-}
 
 void Rainbow_Table_1::build_reductions(){
     // Building reduction functions for a table
@@ -24,8 +12,8 @@ void Rainbow_Table_1::build_reductions(){
     std::uniform_int_distribution<uint64_t> dist(1, prime - 1);
     for (uint j = 0; j < chain_length; j++){
         uint64_t c_j = random_in_range_prime(prime);
-        reductions.push_back([c_j, this](uint32_t h) {
-            uint64_t tmp = h + c_j;
+        reductions.push_back([c_j, this](uint64_t h) {
+            uint128_t tmp = (uint128_t)(h + c_j);
             uint64_t mod_p = (uint64_t)(tmp % prime);
             return (uint32_t)(mod_p % N);
         });
@@ -45,7 +33,7 @@ void Rainbow_Table_2::build_reductions(){
         uint64_t a_j = random_in_range_prime(prime);
         uint64_t b_j = random_in_range_prime(prime);
         reductions.push_back([a_j, b_j, this](uint32_t h) {
-            unsigned __int128 tmp = (unsigned __int128)a_j * h + b_j;
+            uint128_t tmp = (uint128_t)a_j * h + b_j;
             uint64_t mod_p = (uint64_t)(tmp % prime);
             return (uint32_t)(mod_p % N);
         });
@@ -63,8 +51,8 @@ void Rainbow_Table_3::build_reductions(){
     std::uniform_int_distribution<uint64_t> dist(1, prime - 1);
     for (uint j = 0; j < chain_length; j++){
         uint64_t c_j = random_in_range_prime(prime);
-        reductions.push_back([c_j, this](uint32_t h) {
-            unsigned __int128 tmp = (unsigned __int128)(h + c_j);
+        reductions.push_back([c_j, this](uint64_t h) {
+            uint128_t tmp = (uint128_t)(h + c_j);
             uint64_t mod_p = (uint64_t)(tmp % prime);
             return (uint32_t)(mod_p % N);
         });
@@ -210,7 +198,7 @@ uint64_t Rainbow_Table_2::invert(uint32_t y){
     return NONE;
 }
 
-uint64_t Rainbow_Table_3::invert(uint32_t y){
+uint64_t Rainbow_Table_3::invert(uint128_t y){
     for (long int c = chain_length - 1; c >= 0; --c){
         uint32_t endpoint = reductions[c](y);
         for (long int k = c + 1; k < (long int)chain_length; ++k){
@@ -218,7 +206,6 @@ uint64_t Rainbow_Table_3::invert(uint32_t y){
         }
         auto it = std::lower_bound(table.begin(), table.end(), endpoint,
             [](const std::pair<uint32_t,uint32_t>& a, uint32_t val){ return a.second < val; });
-
         while (it != table.end() && it->second == endpoint){
             uint32_t x = it->first;
             for (long int k = 0; k < (long int)chain_length; ++k){

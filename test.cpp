@@ -4,13 +4,6 @@
 #include <utility>
 #include <string> 
 
-// 1. Создать папку сборки
-// mkdir build
-// cd build
-// 2. Сгенерировать проект
-// cmake ..
-// 3. Собрать
-// make
 
 using state_t = std::tuple<size_t, size_t, size_t>;
 

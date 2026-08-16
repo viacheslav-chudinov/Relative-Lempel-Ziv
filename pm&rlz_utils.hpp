@@ -3,12 +3,9 @@
 #include <sdsl/suffix_trees.hpp>
 #include <vector>
 #include <utility>
-
+#include "common_utils.hpp"
 
 using factors_t = std::vector<std::tuple<size_t, size_t, size_t>>;
-
-inline constexpr size_t SIGMA = 6;
-inline char ALPHABET[SIGMA] = {'a','b','c','d','e','\0'};
 
 
 

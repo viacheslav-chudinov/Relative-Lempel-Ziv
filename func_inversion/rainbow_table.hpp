@@ -1,11 +1,8 @@
 #pragma once
-#include <iostream>
 #include <algorithm>
-#include <cstdint>
 #include <vector>
-#include <random>
 #include <functional>
-constexpr uint64_t NONE = std::numeric_limits<uint64_t>::max();
+#include "../common_utils.hpp"
 
 // Rainbow_Table_0, i.e. the one without any reduction functions appeared to be the least efficient. It does not
 // buy anything and only impairs the quality of rainbow tables 
@@ -61,7 +58,6 @@ class Rainbow_Table_2{
 // Invert a function f: {0,1,..,N-1} -> {0,1,..,N-1}. 
 // Reduction functions are : R_j : u -> ((a_j*u + b_j) mod p) mod N, where
 // p in [2N, 4N], a_j & b_j are random constants in the range [1..p-1]
-
 private:
     uint32_t N;
     std::function<uint32_t(uint32_t)> f; 
@@ -85,21 +81,22 @@ public:
 };
 
 class Rainbow_Table_3{
-// Invert a function f: {0,1,..,N-1} -> {0,1,..,N-1}. 
+// Invert a function f: {0,1,..,N-1} -> {0,1,..,M-1}. AND M > N !
 // Reduction functions are : R_j : u -> ((u + c_j) mod p) mod N, where
-// p in [2N, 4N], c_j is a random constant in the range [1..p-1]
+// p is prime, c_j is a random constant in the range [1..p-1]
+
 private:
     uint32_t N;
-    std::function<uint32_t(uint32_t)> f; 
-    uint64_t prime;
+    std::function<uint128_t(uint32_t)> f; 
+    uint128_t prime;
     uint32_t nb_chains;
     uint32_t chain_length;
     std::vector<std::pair<uint32_t, uint32_t>> table;
-    std::vector<std::function<uint32_t(uint32_t)>> reductions;
+    std::vector<std::function<uint32_t(uint128_t)>> reductions;
     void build_reductions();
     void build_table();
 public: 
-    Rainbow_Table_3(uint32_t N, std::function<uint32_t(uint32_t)> func, uint64_t p, uint32_t nb_chains, 
+    Rainbow_Table_3(uint32_t N, std::function<uint128_t(uint32_t)> func, uint128_t p, uint32_t nb_chains, 
     uint32_t chain_length) : N {N}, f {func}, prime {p}, nb_chains {nb_chains}, chain_length {chain_length}{
 
         this->table.resize(nb_chains, {0,0});
@@ -107,8 +104,6 @@ public:
         this->build_table();
 
     }
-    uint64_t invert(uint32_t y); // Outputs an x such that f(x) = y
+    uint64_t invert(uint128_t y); // Outputs an x such that f(x) = y
 };
 
-uint64_t random_in_range_prime(uint64_t prime);
-uint32_t random_in_range(uint32_t N);

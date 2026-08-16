@@ -1,4 +1,5 @@
 #include "rads.hpp"
+#include "common_utils.hpp"
 #include <sdsl/suffix_trees.hpp> // This may be underlined red in some code redactors
 // Depending on your way of integrating sdsl library. In short, in some cases, it 
 // should not mean nor break anything
@@ -7,12 +8,6 @@ using factor_t = std::pair<u32, u32>;
 using table_t = std::vector<std::vector<uint_t>>;
 
 using node_type = sdsl::cst_sada<>::node_type;
-using factors_t = std::vector<std::tuple<uint_t, uint_t, uint_t>>;
-
-
-inline constexpr u32 SIGMA = 8;
-inline char ALPHABET[SIGMA] = {'a','b','c','d','e','f','#','\0'};
-constexpr uint_t NONE = std::numeric_limits<uint_t>::max();
 
 
 struct Breakup_result{
@@ -77,7 +72,6 @@ struct Delta_core_t{
         } 
     }
     uint_t deposit_to_delta_buffer(uint_t b, uint_t u = 0){
-        // std::cout << "We are in deposit_to_delta_buffer" << std::endl;
         uint_t n = T.size();
         while (u < std::min(delta, n-b) && (is_supported_by_main(b+u) || is_supported_by_suppl(b+u))){
             batch[batch_count+u] = access_T(b+u);
@@ -103,7 +97,6 @@ struct Delta_core_t{
 
 template <typename rads_t>
 std::tuple<uint_t, uint_t, uint_t> Delta_core_t<rads_t>::UpdateMS(uint_t l, uint_t s, uint_t p, uint_t query_st){
-    // std::cout << "We are in UpdateMS" <<std::endl;
     if (l == 0){
         return {1,0,1};
     }
@@ -179,12 +172,9 @@ std::vector<uint_t> Delta_core_t<rads_t>::calculate_table_of_deepest_nodes(sdsl:
     while(!stack1.empty()){
         node_type v = stack1.top();
         stack1.pop();
-        for (uint8_t y = 0; y < SIGMA; y++){
-            node_type w = cst.child(v, ALPHABET[y]);
-            if (w != root){
-                stack2.push_back(std::make_pair(w, NONE));
-                stack1.push(w);
-            }
+        for (const auto& w : cst.children(v)){
+            stack2.push_back(std::make_pair(w, NONE));
+            stack1.push(w);
         }
     }
 
@@ -194,11 +184,8 @@ std::vector<uint_t> Delta_core_t<rads_t>::calculate_table_of_deepest_nodes(sdsl:
         uint_t id_v = cst.id(v);
         uint_t suff_ind_of_R = NONE;
         if (marked[id_v][0]==0 && marked[id_v][2] == 0){
-            for (uint8_t y = 0; y < SIGMA; y++){
-                node_type w = cst.child(v, ALPHABET[y]);
-                if (w != root){
-                    if(marked[cst.id(w)][1] < NONE) suff_ind_of_R = marked[cst.id(w)][1];
-                }
+            for (const auto& w : cst.children(v)){
+                if(marked[cst.id(w)][1] < NONE) suff_ind_of_R = marked[cst.id(w)][1];
             }
             if (suff_ind_of_R != NONE){
                 marked[id_v][1] = suff_ind_of_R;
@@ -229,11 +216,8 @@ std::vector<uint_t> Delta_core_t<rads_t>::calculate_table_of_deepest_nodes(sdsl:
         if (cst.is_leaf(v)){
             table_of_best[cst.sn(v)] = cst.id(candidate);
         } else {
-            for (uint8_t y = 0; y < SIGMA; y++){
-                node_type w = cst.child(v, ALPHABET[y]);
-                if (w != root){
-                    stack.push({w, val, candidate});
-                }
+            for (const auto& w : cst.children(v)){
+                stack.push({w, val, candidate});
             }
         }
     }
@@ -284,21 +268,13 @@ Breakup_result Delta_core_t<rads_t>::breakup_delta_buffer()
     uint_t b = 0;
     sdsl::cst_sada<> suff_tree;
     sdsl::construct_im(suff_tree, batch, 1);
-    std::cout << "Batch is " << std::endl;
-    std::cout << batch << std::endl;
     std::vector<uint_t> init_row = {0, NONE, 0, 0}; 
     table_t marked(suff_tree.nodes(), init_row);
     uint_t i = 0;
     uint_t j = 0;
     node_type v = suff_tree.root();
     while (i < m){
-        std::cout << "NEW i=" << i << " R[i]='" << ref_at(i) << "' j=" << j << " v_id=" << suff_tree.id(v) << std::endl;
         while (j < m){
-            std::cout << "MARK-LOOP: i=" << i << " j=" << j
-                       << " v_id=" << suff_tree.id(v)
-                       << " v_depth=" << suff_tree.depth(v)
-                       << " is_leaf=" << suff_tree.is_leaf(v) << std::endl;
-
             if (suff_tree.is_leaf(v)){
                 uint_t id_v = suff_tree.id(v);
                 uint_t v_depth = suff_tree.depth(v) - 1;
@@ -316,9 +292,6 @@ Breakup_result Delta_core_t<rads_t>::breakup_delta_buffer()
             // Trying to read a new char
             char c = ref_at(j);
             node_type w = suff_tree.child(v, c);
-            std::cout << "  reading c='" << c << "' at j=" << j
-                       << " -> w_id=" << suff_tree.id(w)
-                       << " w_depth=" << suff_tree.depth(w) << std::endl;
 
             uint_t cur_match = 0;
             int edge_length = suff_tree.depth(w) - v_depth;
@@ -331,13 +304,6 @@ Breakup_result Delta_core_t<rads_t>::breakup_delta_buffer()
                     extend(v, i, marked, suff_tree, m);
                 break;
             }
-            std::cout << "Edge label is " ;
-            uint_t o = 0;
-            while (o < edge_length){  //1-based indexing on edges
-                std::cout << suff_tree.edge(w,v_depth + o + 1);
-                ++o;
-            }
-            std::cout << std::endl;
             while (cur_match < edge_length && j + cur_match < m && suff_tree.edge(w,v_depth + cur_match + 1) == ref_at(j + cur_match)){  //1-based indexing on edges
                 ++cur_match;
             }
@@ -362,19 +328,6 @@ Breakup_result Delta_core_t<rads_t>::breakup_delta_buffer()
         }
     }
 
-    uint_t root_id = suff_tree.id(suff_tree.root());
-    std::cout << "root_id = " << root_id << std::endl;
-    for (uint8_t y = 0; y < SIGMA; y++){
-        node_type child = suff_tree.child(suff_tree.root(), ALPHABET[y]);
-        if (child != suff_tree.root()){
-            uint_t cid = suff_tree.id(child);
-            std::cout << "child '" << ALPHABET[y] << "' id=" << cid
-                       << " marked={" << marked[cid][0] << "," << marked[cid][1]
-                       << "," << marked[cid][2] << "," << marked[cid][3] << "}"
-                       << std::endl;
-        }
-    }
-
     std::vector<uint_t> table_of_best = calculate_table_of_deepest_nodes(suff_tree, marked);
     return Breakup_result {std::move(marked), std::move(table_of_best)};
 }
@@ -384,29 +337,14 @@ void Delta_core_t<rads_t>::send_factors_out(Breakup_result&& state){
     std::cout << "We are in send_factors_out" << std::endl;
     uint_t delta_phrase_ind = 0;
     uint_t factor_from_cm_ind = 0;
-    // std::cout << "lookup_new_factors trace is " << std::endl;
-    // for (int i = 0; i < lookup_new_factors.size(); ++i){
-    //     std::cout << lookup_new_factors[i] << std::endl;
-    // } 
-    // std::cout << "pending factors " << std::endl;
-    // for (auto s : pending_factors){
-    //     std::cout << s.first << " " << s.second << std::endl;
-    // }
-    std::cout << "batch capacity is equal to " << batch_capacity << std::endl;
-    std::cout << "batch_count = " << batch_count << std::endl;
-    std::cout << "batch is : \n" << batch << std::endl;
     for (uint_t x = 0; x < lookup_new_factors.size(); ++x){
         bool flag = lookup_new_factors[x];  // Becareful, don't switch the type to auto. Vector of bools is memory-packed and returns a proxy-type
-        std::cout << "flag = " << flag <<std::endl;
         if (!flag){
             uint_t p = delta_phrase_ind; 
             uint_t idv = state.table_of_best[p];
             uint_t length_of_factor = state.marked[idv][2] + state.marked[idv][3];
             uint_t start_of_factor = state.marked[idv][1];
             factors.push_back(std::make_pair(static_cast<u32>(start_of_factor), static_cast<u32>(length_of_factor)));
-            std::cout << "p = " << p << std::endl;
-            std::cout << "First factor is " << factors.back().first << " " << factors.back().second <<std::endl;
-            std::cout << "First factor is " << R[factors.back().first] <<std::endl;
             p += length_of_factor;
             while (p < batch_count && batch[p]!='#'){
                 idv = state.table_of_best[p];
