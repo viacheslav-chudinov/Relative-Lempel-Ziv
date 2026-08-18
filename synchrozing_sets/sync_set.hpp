@@ -1,3 +1,4 @@
+#pragma once
 #include "../find_a_prime/primes.hpp"
 #include "../common_utils.hpp"
 #include <boost/multiprecision/cpp_int.hpp>
@@ -31,6 +32,8 @@ public:
         }
         base_ = random_in_range_prime(q_prime);
     }
+    void enum_block(const uint32_t ind, const access_func& access, std::vector<uint32_t>& sync_pos);
+    std::vector<uint32_t> enumerate_sync(const uint32_t ind, const uint32_t length, const access_func& access);
 };
 
 uint32_t eval_hash(uint128_t x, std::vector<uint32_t>& coeff, uint32_t d_);

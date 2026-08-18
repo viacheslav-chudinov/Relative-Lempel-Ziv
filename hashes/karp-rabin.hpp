@@ -1,3 +1,4 @@
+#pragma once
 #include "../common_utils.hpp"
 
 using access_func = std::function<unsigned char(uint32_t)>;
