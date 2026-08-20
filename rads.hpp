@@ -230,21 +230,21 @@ struct rads_simple_2{
         }
         return std::make_pair(ans_pos, l_max);
     }
-    char receive(){
-        if (buffer_start+buffer_size < T.size()){
-            char c = T[buffer_start+buffer_size];
-            return c;
-        }
-        // } else{
-        //     if (buffer_start+buffer_size < N){
-        //         update_text();
-        //         char c = T[0];
-        //         buffer_start = 0;
-        //         return c;
-        //     }
-        //     return;
-        // }
-    }
+    // char receive(){
+    //     if (buffer_start+buffer_size < T.size()){
+    //         char c = T[buffer_start+buffer_size];
+    //         return c;
+    //     }
+    //     // } else{
+    //     //     if (buffer_start+buffer_size < N){
+    //     //         update_text();
+    //     //         char c = T[0];
+    //     //         buffer_start = 0;
+    //     //         return c;
+    //     //     }
+    //     //     return;
+    //     // }
+    // }
     void update(){
         std::tie(i_match, l_match) = longest_suffix_match();
         i_match = R.size() - i_match - l_match;

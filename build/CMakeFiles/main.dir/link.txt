@@ -1,1 +1,0 @@
-/usr/bin/c++  -g -O2 -g -DNDEBUG -Wl,--dependency-file=CMakeFiles/main.dir/link.d CMakeFiles/main.dir/rlz_test.cpp.o CMakeFiles/main.dir/erlz_simple.cpp.o -o main   -L/home/viacheslav/Documents/circular_project/../sdsl/lib  -Wl,-rpath,/home/viacheslav/Documents/circular_project/../sdsl/lib -lsdsl -ldivsufsort -ldivsufsort64

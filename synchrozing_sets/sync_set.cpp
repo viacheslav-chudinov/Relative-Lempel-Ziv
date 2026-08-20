@@ -28,8 +28,8 @@ bool Sync_Set::sync(const uint32_t ind, const uint128_t kr_fingerprint, const ac
 void Sync_Set::enum_block(const uint32_t ind, const access_func& access, std::vector<uint32_t>& sync_pos){
     uint32_t len = 3*tau_ - 1;
     uint32_t period = compute_period(ind + tau_ - 1, tau_ + 1, access); // covers [tau-1, 2tau-1]
-    long int l = tau_+1;
-    uint32_t r = tau_+1;
+    long int l = this->tau_;
+    uint32_t r = this->tau_;
     if (period <= tau_/3){
         long int l_prime = (long int)tau_ - 2;
         uint32_t r_prime = (tau_<<1);
@@ -50,36 +50,36 @@ void Sync_Set::enum_block(const uint32_t ind, const access_func& access, std::ve
             r = r_prime - (tau_<<1) + 1;
         }
     }
-    uint128_t base_powed = compute_pow_modulo_n_long(this->base_, tau_<<1 - 1, this->q_prime);
+    uint128_t base_powed = compute_pow_modulo_n_long(this->base_, (tau_<<1) - 1, this->q_prime);
     uint128_t kr_fp = 0;
     if (l>0){
         kr_fp = phi_at_pos(ind, tau_<<1, this->base_, this->q_prime, access);
         if (eval_hash(kr_fp, this->hash_coeffs, this->d_) == 0){
-            sync_pos.push_back(0);
+            sync_pos.push_back(ind);
         }
     }
     for (int s = 1; s < l; s++){
-        kr_fp = phi_step(ind, tau_<<1, this->base_, base_powed, kr_fp, this->q_prime, access);
+        kr_fp = phi_step(ind + s, tau_<<1, this->base_, base_powed, kr_fp, this->q_prime, access);
         if (eval_hash(kr_fp, this->hash_coeffs, this->d_) == 0){
-            sync_pos.push_back(static_cast<uint32_t>(s));
+            sync_pos.push_back(static_cast<uint32_t>(ind+s));
         }
     }
-    if (l > 0){
-        sync_pos.push_back(l);
+    if (l >= 0 && l < this->tau_){
+        sync_pos.push_back(ind+l);
     }
     if (r < this->tau_){
-        sync_pos.push_back(r);
+        sync_pos.push_back(ind+r);
     }
     if (r < (this->tau_ - 1)){
-        kr_fp = phi_step(ind + r, tau_<<1, this->base_, base_powed, kr_fp, this->q_prime, access);
+        kr_fp = phi_at_pos(ind + r + 1, tau_<<1, base_, q_prime, access);
         if (eval_hash(kr_fp, this->hash_coeffs, this->d_) == 0){
-            sync_pos.push_back(static_cast<uint32_t>(0));
+            sync_pos.push_back(static_cast<uint32_t>(ind+r+1));
         }
     }
-    for (uint32_t s = r + 1; s < this->tau_; s++){
-        kr_fp = phi_step(ind, tau_<<1, this->base_, base_powed, kr_fp, this->q_prime, access);
+    for (uint32_t s = r + 2; s < this->tau_; s++){
+        kr_fp = phi_step(ind + s, tau_<<1, this->base_, base_powed, kr_fp, this->q_prime, access);
         if (eval_hash(kr_fp, this->hash_coeffs, this->d_) == 0){
-            sync_pos.push_back(s);
+            sync_pos.push_back(ind+s);
         }
     }
 }
@@ -96,9 +96,10 @@ std::vector<uint32_t> Sync_Set::enumerate_sync(const uint32_t ind, const uint32_
             return '#';
         };
         enum_block(ind, ultimate_access, sync_pos);
-        auto it = std::lower_bound(sync_pos.begin(), sync_pos.end(), length);
+        auto it = std::lower_bound(sync_pos.begin(), sync_pos.end(), ind + length - (tau_<<1) + 1);
         size_t idx = it - sync_pos.begin();
         sync_pos.resize(idx);
+        return sync_pos;
     } else{
         std::vector<uint32_t> sync_pos;
         uint32_t h = 0;
@@ -119,8 +120,48 @@ std::vector<uint32_t> Sync_Set::enumerate_sync(const uint32_t ind, const uint32_
             }
             while (xx < sync_pos1.size()){
                 sync_pos.push_back(sync_pos1[xx]);
+                xx++;
             }
         }
         return sync_pos;
+    }
+}
+
+
+bool Sync_Set::is_sparse_and_dense(const uint32_t ind, const uint32_t len, const access_func& access){
+    if (len < 3*tau_ - 1){
+        return true;
+    }
+    uint32_t sparsity_bound = 72*k_+2;
+    std::vector<uint32_t> sync_positions = enumerate_sync(ind, len, access);
+    const uint32_t last_i = ind + len - 3*tau_ + 1;
+    uint32_t left = 0, right = 0;
+    for (uint32_t i = ind; i <= last_i; ++i){
+        while (right < sync_positions.size() && sync_positions[right] < i + tau_){
+            ++right;
+        }
+        while (left < right && sync_positions[left] < i){
+            ++left;
+        }
+        const uint32_t count = right - left;
+        if (count > sparsity_bound){
+            return false;
+        }
+        if (count == 0){
+            uint32_t per = compute_period(i, 3*tau_ - 1, access);
+            if (per > tau_/3){
+                return false;
+            }
+        }
+    }
+    return true;
+}
+
+void Sync_Set::reinit(){
+    this->base_ = random_in_range_prime(this->q_prime);
+    if (tau_ >= 12*k_){
+        for (uint32_t i = 0; i < k_; ++i){
+            this->hash_coeffs[i] = random_in_range_prime_with_0(d_);
+        }
     }
 }

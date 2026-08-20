@@ -3,6 +3,7 @@
 #include <random>
 #include <cstdint>
 #include <limits>
+#include <vector>
 #include <iostream>
 #include <boost/multiprecision/cpp_int.hpp>
 
@@ -29,20 +30,46 @@ inline void init_char_to_index(){
     }
 }
 
-
-inline uint128_t random_in_range_prime(uint128_t prime){
+inline uint128_t random_uint128_raw(){
     static std::random_device rd;
     static std::mt19937_64 gen(rd());
-    std::uniform_int_distribution<uint128_t> dist(1, prime - 1);
-    return dist(gen);
+    uint128_t high = gen();
+    uint128_t low = gen();
+    return (high << 64) | low;
 }
 
 inline uint128_t random_in_range_prime_with_0(uint128_t prime){
-    static std::random_device rd;
-    static std::mt19937_64 gen(rd());
-    std::uniform_int_distribution<uint128_t> dist(0, prime - 1);
-    return dist(gen);
+    uint128_t limit = (std::numeric_limits<uint128_t>::max() / prime) * prime; // Introduced to evenly map a large range onto [0..p-1]
+    uint128_t x;
+    do {
+        x = random_uint128_raw();
+    } while (x >= limit);
+    return x % prime;
 }
+
+inline uint128_t random_in_range_prime(uint128_t prime){
+    uint128_t range = prime - 1;
+    uint128_t limit = (std::numeric_limits<uint128_t>::max() / range) * range;
+    uint128_t x;
+    do {
+        x = random_uint128_raw();
+    } while (x >= limit);
+    return 1 + (x % range);
+}
+
+// inline uint128_t random_in_range_prime(uint128_t prime){
+//     static std::random_device rd;
+//     static std::mt19937_64 gen(rd());
+//     std::uniform_int_distribution<uint128_t> dist(1, prime - 1);
+//     return dist(gen);
+// }
+
+// inline uint128_t random_in_range_prime_with_0(uint128_t prime){
+//     static std::random_device rd;
+//     static std::mt19937_64 gen(rd());
+//     std::uniform_int_distribution<uint128_t> dist(0, prime - 1);
+//     return dist(gen);
+// }
 
 inline uint32_t random_in_range(uint32_t N){
     static std::random_device rd;

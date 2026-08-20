@@ -104,6 +104,6 @@ public:
         this->build_table();
 
     }
-    uint64_t invert(uint128_t y); // Outputs an x such that f(x) = y
+    uint64_t invert(uint128_t y); // Outputs an x such that f(x) = y, or if does not exist, outputs NONE = max(uint64_t)
 };
 

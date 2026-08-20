@@ -8,12 +8,12 @@ class Mega_Rainbow_Table{
 private:
     int INRBT; // Initial Number of RainBow Tables
     uint32_t N;
-    std::function<uint128_t(uint32_t)> f;
     // std::vector<Rainbow_Table_3*> tables;
     uint128_t prime;
     uint32_t nb_chains;
     uint32_t chain_length;
 public:
+    std::function<uint128_t(uint32_t)> f;
     std::vector<Rainbow_Table_3*> tables;
     Mega_Rainbow_Table(int INRBT, uint32_t N, std::function<uint128_t(uint32_t)> func, uint128_t p) : INRBT {INRBT}, N {N}, 
     f{func}{

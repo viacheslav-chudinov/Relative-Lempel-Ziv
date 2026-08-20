@@ -7,7 +7,6 @@ using access_func = std::function<char(uint32_t)>;
 
 class Sync_Set{
 private:
-    const uint32_t m_;
     const uint32_t lambda_;
     const uint32_t tau_;
     const uint32_t k_;
@@ -17,7 +16,7 @@ public:
     bool sync(const uint32_t ind, const uint128_t kr_fingerprint, const access_func& access);
     uint32_t d_; // will be a prime
     std::vector<uint32_t> hash_coeffs;
-    Sync_Set(const uint32_t m_, const uint32_t lambda_, const uint32_t tau_, const uint128_t q_prime) : m_ (m_), lambda_(lambda_),
+    Sync_Set(const uint32_t lambda_, const uint32_t tau_, const uint128_t q_prime) : lambda_(lambda_),
     tau_(tau_), q_prime{q_prime}, k_(9*lambda_){
         if (tau_ < 12*k_){
             this->hash_coeffs.resize(k_, 0);
@@ -25,15 +24,17 @@ public:
         } else{
             uint32_t start = (tau_+1)/(12*k_);
             this->d_ = find_prime_Bertrand(start);
-            this->hash_coeffs.reserve(k_);
+            this->hash_coeffs.resize(k_);
             for (uint32_t i = 0; i < k_; ++i){
-                this->hash_coeffs[i] = random_in_range_prime_with_0(d_);
+                this->hash_coeffs[i] = random_in_range(d_);
             }
         }
         base_ = random_in_range_prime(q_prime);
     }
     void enum_block(const uint32_t ind, const access_func& access, std::vector<uint32_t>& sync_pos);
     std::vector<uint32_t> enumerate_sync(const uint32_t ind, const uint32_t length, const access_func& access);
+    bool is_sparse_and_dense(const uint32_t ind, const uint32_t len, const access_func& access);
+    void reinit();
 };
 
 uint32_t eval_hash(uint128_t x, std::vector<uint32_t>& coeff, uint32_t d_);

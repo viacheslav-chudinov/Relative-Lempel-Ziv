@@ -1,4 +1,0 @@
-/home/viacheslav/Documents/circular_project/build/CMakeFiles/main.dir
-/home/viacheslav/Documents/circular_project/build/CMakeFiles/profile.dir
-/home/viacheslav/Documents/circular_project/build/CMakeFiles/edit_cache.dir
-/home/viacheslav/Documents/circular_project/build/CMakeFiles/rebuild_cache.dir

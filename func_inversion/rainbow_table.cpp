@@ -7,9 +7,6 @@ void Rainbow_Table_1::build_reductions(){
     // x_1 -> R_1(f(x)) =: x_2 -> R_2(f(x_2)) =: x_2 -> and so on
     reductions.clear();
     reductions.reserve(chain_length);
-    static std::random_device rd;
-    static std::mt19937_64 gen(rd());
-    std::uniform_int_distribution<uint64_t> dist(1, prime - 1);
     for (uint j = 0; j < chain_length; j++){
         uint64_t c_j = random_in_range_prime(prime);
         reductions.push_back([c_j, this](uint64_t h) {
@@ -26,9 +23,6 @@ void Rainbow_Table_2::build_reductions(){
     // x_1 -> R_1(f(x)) =: x_2 -> R_2(f(x_2)) =: x_2 -> and so on
     reductions.clear();
     reductions.reserve(chain_length);
-    static std::random_device rd;
-    static std::mt19937_64 gen(rd());
-    std::uniform_int_distribution<uint64_t> dist(1, prime - 1);
     for (uint j = 0; j < chain_length; j++){
         uint64_t a_j = random_in_range_prime(prime);
         uint64_t b_j = random_in_range_prime(prime);
@@ -44,17 +38,15 @@ void Rainbow_Table_3::build_reductions(){
     // Building reduction functions for a table
     // More specifically, a chain will look like:
     // x_1 -> R_1(f(x)) =: x_2 -> R_2(f(x_2)) =: x_2 -> and so on
+    using boost::multiprecision::uint256_t;
     reductions.clear();
     reductions.reserve(chain_length);
-    static std::random_device rd;
-    static std::mt19937_64 gen(rd());
-    std::uniform_int_distribution<uint64_t> dist(1, prime - 1);
     for (uint j = 0; j < chain_length; j++){
-        uint64_t c_j = random_in_range_prime(prime);
-        reductions.push_back([c_j, this](uint64_t h) {
-            uint128_t tmp = (uint128_t)(h + c_j);
-            uint64_t mod_p = (uint64_t)(tmp % prime);
-            return (uint32_t)(mod_p % N);
+        uint128_t c_j = random_in_range_prime(prime);
+        reductions.push_back([c_j, this](uint128_t h) {
+            uint256_t tmp = h + c_j;
+            uint256_t mod_p = tmp % prime;
+            return static_cast<uint32_t>(mod_p % N);
         });
     }
 }
