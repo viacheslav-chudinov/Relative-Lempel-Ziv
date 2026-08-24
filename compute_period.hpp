@@ -1,10 +1,10 @@
 #include "common_utils.hpp"
 #include <boost/multiprecision/cpp_int.hpp>
 
-using access_func = std::function<char(uint32_t)>;
+using access_func = std::function<unsigned char(uint32_t)>;
 
 
-uint32_t compute_period(const uint32_t pos, const uint32_t len, const access_func& access){
+inline uint32_t compute_period(const uint32_t pos, const uint32_t len, const access_func& access){
     if (len <= 1){
         return len; 
     }

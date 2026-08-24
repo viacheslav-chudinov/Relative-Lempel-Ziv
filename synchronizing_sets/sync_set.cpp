@@ -3,13 +3,11 @@
 #include "../hashes/karp-rabin.hpp"
 #include <algorithm>
 
-uint32_t eval_hash(uint128_t x, std::vector<uint32_t>& coeffs, uint32_t d_){
-    using boost::multiprecision::uint256_t;
-    uint256_t res = static_cast<uint256_t>(0);
-    uint256_t P = static_cast<uint256_t>(d_);
-    for (long int i = coeffs.size() - 1; i >= 0; --i)
-        res = (((res * x)%P) + coeffs[i])%P;
-    return static_cast<uint128_t>(res);
+uint32_t eval_hash(uint128_t z, std::vector<uint128_t>& coeffs, uint32_t d_){
+    uint128_t res = 0;
+    for (long int i = (long int)coeffs.size() - 1; i >= 0; --i)
+        res = addmod(mulmod(res, z), coeffs[i]);
+    return static_cast<uint32_t>(res % static_cast<uint128_t>(d_));
 }
 
 bool Sync_Set::sync(const uint32_t ind, const uint128_t kr_fingerprint, const access_func& access){
@@ -28,9 +26,11 @@ bool Sync_Set::sync(const uint32_t ind, const uint128_t kr_fingerprint, const ac
 void Sync_Set::enum_block(const uint32_t ind, const access_func& access, std::vector<uint32_t>& sync_pos){
     uint32_t len = 3*tau_ - 1;
     uint32_t period = compute_period(ind + tau_ - 1, tau_ + 1, access); // covers [tau-1, 2tau-1]
+    // std::cout << "Period computed" << std::endl;
     long int l = this->tau_;
     uint32_t r = this->tau_;
     if (period <= tau_/3){
+        // std::cout << "period <= tau/3" << std::endl;
         long int l_prime = (long int)tau_ - 2;
         uint32_t r_prime = (tau_<<1);
         for (l_prime = (long int)tau_ - 2; l_prime >= 0; l_prime--){
@@ -50,16 +50,16 @@ void Sync_Set::enum_block(const uint32_t ind, const access_func& access, std::ve
             r = r_prime - (tau_<<1) + 1;
         }
     }
-    uint128_t base_powed = compute_pow_modulo_n_long(this->base_, (tau_<<1) - 1, this->q_prime);
+    uint128_t base_powed = powmod(this->base_, (tau_<<1) - 1);
     uint128_t kr_fp = 0;
     if (l>0){
-        kr_fp = phi_at_pos(ind, tau_<<1, this->base_, this->q_prime, access);
+        kr_fp = phi_at_pos(ind, tau_<<1, this->base_, access);
         if (eval_hash(kr_fp, this->hash_coeffs, this->d_) == 0){
             sync_pos.push_back(ind);
         }
     }
     for (int s = 1; s < l; s++){
-        kr_fp = phi_step(ind + s, tau_<<1, this->base_, base_powed, kr_fp, this->q_prime, access);
+        kr_fp = phi_step(ind + s, tau_<<1, this->base_, base_powed, kr_fp, access);
         if (eval_hash(kr_fp, this->hash_coeffs, this->d_) == 0){
             sync_pos.push_back(static_cast<uint32_t>(ind+s));
         }
@@ -71,13 +71,13 @@ void Sync_Set::enum_block(const uint32_t ind, const access_func& access, std::ve
         sync_pos.push_back(ind+r);
     }
     if (r < (this->tau_ - 1)){
-        kr_fp = phi_at_pos(ind + r + 1, tau_<<1, base_, q_prime, access);
+        kr_fp = phi_at_pos(ind + r + 1, tau_<<1, base_, access);
         if (eval_hash(kr_fp, this->hash_coeffs, this->d_) == 0){
             sync_pos.push_back(static_cast<uint32_t>(ind+r+1));
         }
     }
     for (uint32_t s = r + 2; s < this->tau_; s++){
-        kr_fp = phi_step(ind + s, tau_<<1, this->base_, base_powed, kr_fp, this->q_prime, access);
+        kr_fp = phi_step(ind + s, tau_<<1, this->base_, base_powed, kr_fp, access);
         if (eval_hash(kr_fp, this->hash_coeffs, this->d_) == 0){
             sync_pos.push_back(ind+s);
         }
@@ -93,7 +93,7 @@ std::vector<uint32_t> Sync_Set::enumerate_sync(const uint32_t ind, const uint32_
             if ((jj - ind) < length){
                 return access(jj);
             }
-            return '#';
+            return 0;
         };
         enum_block(ind, ultimate_access, sync_pos);
         auto it = std::lower_bound(sync_pos.begin(), sync_pos.end(), ind + length - (tau_<<1) + 1);
@@ -104,7 +104,9 @@ std::vector<uint32_t> Sync_Set::enumerate_sync(const uint32_t ind, const uint32_
         std::vector<uint32_t> sync_pos;
         uint32_t h = 0;
         uint32_t right = (length-3*tau_+1)/tau_;
+        // std::cout << "right = " << right << std::endl;
         for (h = 0; h <= right; ++h){
+            // std::cout << "h = " << h << std::endl;
             enum_block(ind + (h*tau_), access, sync_pos);
         }
         std::vector<uint32_t> sync_pos1;
@@ -158,7 +160,7 @@ bool Sync_Set::is_sparse_and_dense(const uint32_t ind, const uint32_t len, const
 }
 
 void Sync_Set::reinit(){
-    this->base_ = random_in_range_prime(this->q_prime);
+    this->base_ = random_in_range_prime(q_prime);
     if (tau_ >= 12*k_){
         for (uint32_t i = 0; i < k_; ++i){
             this->hash_coeffs[i] = random_in_range_prime_with_0(d_);

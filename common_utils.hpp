@@ -11,6 +11,8 @@ typedef uint32_t u32;
 typedef uint64_t u64;
 using uint_t = uint64_t;
 using uint128_t = unsigned __int128;
+using int128_t = __int128;
+
 
 constexpr uint_t NONE = std::numeric_limits<uint_t>::max();
 
@@ -20,6 +22,50 @@ inline char ALPHABET[SIGMA] = {'a','b','c','d'};
 
 
 inline std::array<int, 0xff> char_to_index;
+
+inline constexpr uint128_t q_prime = SUPER_PRIME;
+
+// a mod q :
+// uint128_t reduced_mod = ((a>>127)&1 + (a&q))
+// reduced_mod = reduced_mod - (q&(static_cast<int128_t>(reduced_mod>=q)<<127)>>127) 
+
+// a*b mod q : a = 2^64*d_a + r_a; b = 2^64*d_b + r_b => a*b = 2*d_a*d_b + 2^64 * (d_a*r_b + d_b*r_a) + r_a*r_b
+// d_a*r_b + d_b*r_a = 2^64*w + r; => 2^64 * (d_a*r_b + d_b*r_a) = 2*w + 2^64 * r mod q 
+//
+
+inline uint128_t reduce(uint128_t a){
+    uint128_t t = ((a >> 127) & 1) + (a & q_prime);
+    return t - (q_prime & -(uint128_t)(t >= q_prime));
+}
+
+inline uint128_t addmod(uint128_t a, uint128_t b){
+    return reduce(reduce(a)+reduce(b));
+}
+
+inline uint128_t mulmod(uint128_t a, uint128_t b){
+    uint128_t d_a = (a >>64) & (~(uint64_t(0)));
+    uint128_t d_b = (b >>64) & (~(uint64_t(0)));
+    uint128_t r_a = a & (~(uint64_t(0)));
+    uint128_t r_b = b & (~(uint64_t(0)));
+    uint128_t res = reduce(reduce((reduce(d_a*d_b))<<1)+reduce(r_a*r_b));
+    uint128_t intermediate_res = reduce(reduce(d_a*r_b) + reduce(d_b*r_a));
+    uint128_t hi = (intermediate_res >>64) & (~(uint64_t(0)));
+    uint128_t lo = intermediate_res & (~(uint64_t(0)));
+    intermediate_res = reduce((lo<< 64));
+    intermediate_res = reduce(intermediate_res + (hi<<1));
+    return reduce(intermediate_res + res);
+}
+
+inline uint128_t powmod(uint128_t a, uint32_t pow){ // Compute a^pow mod q_prime
+    uint128_t tmp = 1;
+    uint128_t base = reduce(a);
+    while (pow){
+        if (pow & 1) tmp = mulmod(tmp, base);
+        base = mulmod(base, base);
+        pow >>= 1;
+    }
+    return tmp;
+}
 
 
 // NECESSARY TO RUN IN MAIN() BEFORE EVERYTHING:
@@ -56,20 +102,6 @@ inline uint128_t random_in_range_prime(uint128_t prime){
     } while (x >= limit);
     return 1 + (x % range);
 }
-
-// inline uint128_t random_in_range_prime(uint128_t prime){
-//     static std::random_device rd;
-//     static std::mt19937_64 gen(rd());
-//     std::uniform_int_distribution<uint128_t> dist(1, prime - 1);
-//     return dist(gen);
-// }
-
-// inline uint128_t random_in_range_prime_with_0(uint128_t prime){
-//     static std::random_device rd;
-//     static std::mt19937_64 gen(rd());
-//     std::uniform_int_distribution<uint128_t> dist(0, prime - 1);
-//     return dist(gen);
-// }
 
 inline uint32_t random_in_range(uint32_t N){
     static std::random_device rd;

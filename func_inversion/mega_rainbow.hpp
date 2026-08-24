@@ -2,6 +2,7 @@
 #include <set>
 #include <unordered_set>
 #include "rainbow_table.hpp"
+#include "../find_a_prime/primes.hpp"
 
 // Used specifically for Karp-Rabin fingerprints
 class Mega_Rainbow_Table{
@@ -15,14 +16,15 @@ private:
 public:
     std::function<uint128_t(uint32_t)> f;
     std::vector<Rainbow_Table_3*> tables;
-    Mega_Rainbow_Table(int INRBT, uint32_t N, std::function<uint128_t(uint32_t)> func, uint128_t p) : INRBT {INRBT}, N {N}, 
+    Mega_Rainbow_Table(int INRBT, uint32_t N, std::function<uint128_t(uint32_t)> func) : INRBT {INRBT}, N {N}, 
     f{func}{
         tables.resize(INRBT);
+        this->prime = find_good_prime_for_rb_tables(N);
         uint32_t cbrt_N = static_cast<uint32_t>(std::cbrt(N)); // std::cbrt(N) = N^{1/3}
         this->nb_chains = 2 * cbrt_N * cbrt_N;
         this->chain_length = 2 * cbrt_N; 
         for (int i = 0; i < INRBT; ++i){
-            tables[i] = new Rainbow_Table_3(N, func, p, this->nb_chains, this->chain_length);
+            tables[i] = new Rainbow_Table_3(N, func, this->prime, this->nb_chains, this->chain_length);
         }
     }
     ~Mega_Rainbow_Table(){
