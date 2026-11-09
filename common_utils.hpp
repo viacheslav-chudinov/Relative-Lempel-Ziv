@@ -25,13 +25,6 @@ inline std::array<int, 0xff> char_to_index;
 
 inline constexpr uint128_t q_prime = SUPER_PRIME;
 
-// a mod q :
-// uint128_t reduced_mod = ((a>>127)&1 + (a&q))
-// reduced_mod = reduced_mod - (q&(static_cast<int128_t>(reduced_mod>=q)<<127)>>127) 
-
-// a*b mod q : a = 2^64*d_a + r_a; b = 2^64*d_b + r_b => a*b = 2*d_a*d_b + 2^64 * (d_a*r_b + d_b*r_a) + r_a*r_b
-// d_a*r_b + d_b*r_a = 2^64*w + r; => 2^64 * (d_a*r_b + d_b*r_a) = 2*w + 2^64 * r mod q 
-//
 
 inline uint128_t reduce(uint128_t a){
     uint128_t t = ((a >> 127) & 1) + (a & q_prime);

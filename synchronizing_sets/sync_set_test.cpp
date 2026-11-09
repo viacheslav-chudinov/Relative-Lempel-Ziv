@@ -3,10 +3,9 @@
 #include <fstream>
 #include "../hashes/karp-rabin.hpp"
 
-
 int main(){
     const uint32_t lambda_ = 6; 
-    const uint32_t tau_ = 500000;
+    const uint32_t tau_ = 1000;
     Sync_Set sync_set(lambda_, tau_);
     std::string R;
     std::ifstream file("../func_inversion/longtxt.txt");

@@ -33,7 +33,7 @@ int main(){
     const uint128_t kr_prime = q_prime;
 
     const uint32_t k_sync = 9*lambda_;
-    const uint32_t k = std::min(72*k_sync + 2, (tau_+1)/4);
+    const uint32_t k = std::min(72*k_sync + 2, tau_/2);
     std::cout << "k (sparsity bound for f domain) = " << k << "\n";
 
     const uint32_t num_blocks = (m + n - 1)/n;
@@ -48,17 +48,17 @@ int main(){
         uint32_t b = x / k;
         uint32_t j = x - b*k;
         uint32_t block_start = b * n;
-        if (block_start + 2*n > m) return sentinel_fp; // before was random_in_range_prime(q_prime)
+        if (block_start + 2*n > m) return 3; // before was sentinel_fp
         uint32_t win_len = std::min<uint32_t>(3*n, m - block_start);
-        if (win_len < 2*n) return sentinel_fp;  // before was random_in_range_prime(q_prime)
+        if (win_len < 2*n) return 2;  // before was sentinel_fp
         std::vector<uint32_t> S = sync_set.enumerate_sync(block_start, win_len, access_ref);
         uint32_t i_ref = 0;
         if (S.empty() || (S.size() <= j)){
-            return sentinel_fp;  // before was random_in_range_prime(q_prime)
+            return mulmod((uint128_t)x, kr_base); // before was sentinel_fp
         }
         i_ref = S[j];
         if ((i_ref >= ((b*n) + n)) || ((i_ref + (n<<1)) > m)){
-            return sentinel_fp; // before was random_in_range_prime(q_prime)
+            return 1; // before was sentinel_fp
         }
         return phi_at_pos(i_ref, 2*n, kr_base, access_ref);
     };
@@ -103,7 +103,7 @@ int main(){
     Mega_Rainbow_Table rb_main(INRBT_f, N_f, f);
     std::cout << " done\n";
     auto t2 = std::chrono::high_resolution_clock::now();
-    uint64_t x = rb_main.invert(f_pre(0));
+    uint64_t x = rb_main.invert(f(0));
     auto t3 = std::chrono::high_resolution_clock::now();
     std::cout << "one f inversion: "
             << std::chrono::duration_cast<std::chrono::microseconds>(t3-t2).count()

@@ -139,9 +139,8 @@ struct rads_simple_2{
     uint_t buffer_start;
     uint_t buffer_size;
     std::vector<char> current_buff;
-    uint_t N; // Currently N = T.size(), but it'll become the global size of the text data, whereas T becomes the buffer for RIO-reading of the data.
     rads_simple_2(std::string& ref, std::string& text, uint_t tau) : R {ref}, T {text}, tau {tau},
-    l_match {0}, i_match {0}, buffer_start {0}, buffer_size{0}, current_buff(tau), N{T.size()} {
+    l_match {0}, i_match {0}, buffer_start {0}, buffer_size{0}, current_buff(tau) {
         if (T.size() == 0){
             throw std::runtime_error("Text is empty --> undefined behaviour. Initialization ceased");
         }
@@ -230,21 +229,6 @@ struct rads_simple_2{
         }
         return std::make_pair(ans_pos, l_max);
     }
-    // char receive(){
-    //     if (buffer_start+buffer_size < T.size()){
-    //         char c = T[buffer_start+buffer_size];
-    //         return c;
-    //     }
-    //     // } else{
-    //     //     if (buffer_start+buffer_size < N){
-    //     //         update_text();
-    //     //         char c = T[0];
-    //     //         buffer_start = 0;
-    //     //         return c;
-    //     //     }
-    //     //     return;
-    //     // }
-    // }
     void update(){
         std::tie(i_match, l_match) = longest_suffix_match();
         i_match = R.size() - i_match - l_match;

@@ -42,7 +42,7 @@ struct pm_rlz{
         while (i < l + 1){
             if (ref_at(i-p) < ref_at(i)){                //  ---
                 i = i - (i>=s ? (i-s)%p : p-((s-i)%p));  //     |
-                s = i;                                   //     |   -- This two inequality signs were originally mistakenly exchanged
+                s = i;                                   //     |   -- This two inequality signs were mistakenly exchanged in the article
                 p = 1;                                   //     |
             } else if(ref_at(i-p) > ref_at(i)){          //  ---
                 p = i - s + 1;
@@ -65,7 +65,7 @@ struct pm_rlz{
                 l_max = l;
             }
             bool s_match = true;
-            for (size_t b = 0; b < s; ++b){  // Sketchy
+            for (size_t b = 0; b < s; ++b){
                 if(ref_at(b)!=ref_at(p+b)){
                     s_match = false;
                     break;                    
